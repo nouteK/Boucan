@@ -1,0 +1,44 @@
+{
+  "description": "Room just created: only the host, not ready.",
+  "you": "p_9znALyUbhS",
+  "snapshot": {
+    "rev": 1,
+    "serverTime": 1700000000000,
+    "lobby": {
+      "code": "MPDV",
+      "hostId": "p_9znALyUbhS",
+      "players": [
+        {
+          "id": "p_9znALyUbhS",
+          "nickname": "Capitaine",
+          "characterId": "fox",
+          "seat": 0,
+          "isHost": true,
+          "ready": false,
+          "connection": "connected",
+          "score": 0,
+          "joinedAt": 1700000000000
+        }
+      ],
+      "config": {
+        "rounds": 5,
+        "minigamePool": null
+      },
+      "maxPlayers": 8,
+      "canStart": false
+    },
+    "match": {
+      "matchId": null,
+      "phase": "LOBBY",
+      "phaseStartedAt": 1700000000000,
+      "phaseEndsAt": null,
+      "phaseEndsExactly": false,
+      "round": 0,
+      "totalRounds": 5,
+      "minigame": null,
+      "lastRound": null,
+      "standings": [],
+      "final": null
+    }
+  }
+}

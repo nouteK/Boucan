@@ -1,0 +1,150 @@
+{
+  "$comment": [
+    "Nickname filter word list (read by packages/shared/src/moderation.ts, client AND server).",
+    "Write terms naturally: case, accents and look-alike characters (0, 1, @, $…) are normalised.",
+    "substring: long, unambiguous terms, matched anywhere in the name (also 'x.X.x', 'x x x', leet).",
+    "word: short or ambiguous terms, matched only as a whole word or as the whole name.",
+    "digits: numeric codes, matched in the digits of the name.",
+    "allow: legitimate words that happen to contain a substring term (e.g. salopette).",
+    "Add a term to the right category and run `npm run test -w @boucan/shared`.",
+    "Terms are matched with stretchable letters: 'fuck' also catches 'fuuuck', but a doubled letter must stay doubled ('nigger' does not match 'Niger'), so add common single-letter spellings explicitly (conard, batar)."
+  ],
+  "categories": {
+    "insults": {
+      "substring": [
+        "connard",
+        "connasse",
+        "salope",
+        "salaud",
+        "bâtard",
+        "pétasse",
+        "pouffiasse",
+        "trouduc",
+        "putain",
+        "fils de pute",
+        "sale pute",
+        "ta gueule",
+        "nique ta mère",
+        "niquetamere",
+        "nik ta mere",
+        "abruti",
+        "débile mental",
+        "fuck",
+        "motherfucker",
+        "bitch",
+        "cunt",
+        "whore",
+        "asshole",
+        "dickhead",
+        "wanker",
+        "bastard",
+        "conard",
+        "conasse",
+        "batar",
+        "encul"
+      ],
+      "word": ["pute", "putes", "fdp", "ntm", "nique", "merde", "tg", "fuk", "fck", "shit", "slut"]
+    },
+    "hate": {
+      "substring": [
+        "nègre",
+        "négresse",
+        "nigger",
+        "nigga",
+        "bougnoul",
+        "bicot",
+        "youpin",
+        "chinetoque",
+        "bamboula",
+        "sale arabe",
+        "sale noir",
+        "sale juif",
+        "sale blanc",
+        "sale bougnoule",
+        "tafiole",
+        "tarlouze",
+        "gouine",
+        "faggot",
+        "tranny",
+        "negro"
+      ],
+      "word": ["pd", "pédé", "pede", "tapette", "fag", "fags", "nig"]
+    },
+    "extremism": {
+      "substring": ["nazi", "hitler", "sieg heil", "white power", "daesh", "terroriste"],
+      "word": ["heil", "kkk", "ss88", "isis"],
+      "digits": ["1488"]
+    },
+    "sexual": {
+      "substring": [
+        "porno",
+        "pornhub",
+        "branleur",
+        "branlette",
+        "suceuse",
+        "suceur",
+        "sodomie",
+        "sodomise",
+        "couille",
+        "pénis",
+        "vagin",
+        "clitoris",
+        "levrette",
+        "éjacul",
+        "masturb",
+        "pussy",
+        "blowjob",
+        "cumshot",
+        "hentai",
+        "violeur",
+        "pédophile",
+        "rapist"
+      ],
+      "word": [
+        "bite",
+        "bites",
+        "chatte",
+        "sexe",
+        "sex",
+        "xxx",
+        "viol",
+        "violer",
+        "cul",
+        "dick",
+        "cock",
+        "rape",
+        "porn",
+        "anal"
+      ]
+    },
+    "threats": {
+      "substring": [
+        "je vais te tuer",
+        "jvais te tuer",
+        "je te tue",
+        "crève",
+        "suicide toi",
+        "kill yourself",
+        "killyourself"
+      ],
+      "word": ["kys", "tuer"]
+    }
+  },
+  "allow": [
+    "salopette",
+    "salopettes",
+    "scunthorpe",
+    "pussycat",
+    "abrutissant",
+    "cocorico",
+    "shitake",
+    "shiitake",
+    "nazim",
+    "nazir",
+    "nazih",
+    "montenegro",
+    "crevette",
+    "crevettes",
+    "crever de rire"
+  ]
+}

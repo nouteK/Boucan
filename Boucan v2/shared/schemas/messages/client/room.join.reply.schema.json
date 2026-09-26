@@ -1,0 +1,854 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "playerId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "description": "Opaque player id"
+    },
+    "sessionToken": {
+      "type": "string"
+    },
+    "snapshot": {
+      "type": "object",
+      "properties": {
+        "rev": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "serverTime": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "Server epoch time (ms)"
+        },
+        "lobby": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "pattern": "^[BCDFGHJKMNPQRTVWXZ234679]{4}$"
+            },
+            "hostId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64,
+                  "description": "Opaque player id"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "players": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "description": "Opaque player id"
+                  },
+                  "nickname": {
+                    "type": "string"
+                  },
+                  "characterId": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[a-z0-9][a-z0-9_-]{0,31}$",
+                        "description": "Logical character id (frontend-owned roster)"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "seat": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 7
+                  },
+                  "isHost": {
+                    "type": "boolean"
+                  },
+                  "ready": {
+                    "type": "boolean"
+                  },
+                  "connection": {
+                    "type": "string",
+                    "enum": [
+                      "connected",
+                      "disconnected",
+                      "left"
+                    ]
+                  },
+                  "score": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "joinedAt": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "Server epoch time (ms)"
+                  }
+                },
+                "required": [
+                  "id",
+                  "nickname",
+                  "characterId",
+                  "seat",
+                  "isHost",
+                  "ready",
+                  "connection",
+                  "score",
+                  "joinedAt"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "config": {
+              "type": "object",
+              "properties": {
+                "rounds": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "minigamePool": {
+                  "anyOf": [
+                    {
+                      "minItems": 1,
+                      "maxItems": 64,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9][a-z0-9-]{0,31}$",
+                        "description": "Minigame slug"
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "rounds",
+                "minigamePool"
+              ],
+              "additionalProperties": false
+            },
+            "maxPlayers": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991
+            },
+            "canStart": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "code",
+            "hostId",
+            "players",
+            "config",
+            "maxPlayers",
+            "canStart"
+          ],
+          "additionalProperties": false
+        },
+        "match": {
+          "type": "object",
+          "properties": {
+            "matchId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "phase": {
+              "type": "string",
+              "enum": [
+                "LOBBY",
+                "MATCH_STARTING",
+                "MINIGAME_PREPARING",
+                "MINIGAME_COUNTDOWN",
+                "MINIGAME_ACTIVE",
+                "MINIGAME_ENDING",
+                "MINIGAME_RESULTS",
+                "INTERMISSION",
+                "MATCH_RESULTS"
+              ]
+            },
+            "phaseStartedAt": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991,
+              "description": "Server epoch time (ms)"
+            },
+            "phaseEndsAt": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991,
+                  "description": "Server epoch time (ms)"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "phaseEndsExactly": {
+              "type": "boolean"
+            },
+            "round": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "totalRounds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "minigame": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "sessionId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64,
+                      "description": "Minigame session id"
+                    },
+                    "minigameId": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9][a-z0-9-]{0,31}$",
+                      "description": "Minigame slug"
+                    },
+                    "round": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "authority": {
+                      "type": "string",
+                      "enum": [
+                        "local",
+                        "relay",
+                        "server"
+                      ]
+                    },
+                    "seed": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 4294967295
+                    },
+                    "params": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "participants": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "Opaque player id"
+                      }
+                    },
+                    "solo": {
+                      "type": "boolean"
+                    },
+                    "readyPlayerIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "Opaque player id"
+                      }
+                    },
+                    "finishedPlayerIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "Opaque player id"
+                      }
+                    },
+                    "timing": {
+                      "type": "object",
+                      "properties": {
+                        "preparingAt": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Server epoch time (ms)"
+                        },
+                        "countdownAt": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Server epoch time (ms)"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "activeAt": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Server epoch time (ms)"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "endsAt": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Server epoch time (ms)"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "endedAt": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991,
+                              "description": "Server epoch time (ms)"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "durationMs": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "preparingAt",
+                        "countdownAt",
+                        "activeAt",
+                        "endsAt",
+                        "endedAt",
+                        "durationMs"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "sessionId",
+                    "minigameId",
+                    "round",
+                    "authority",
+                    "seed",
+                    "params",
+                    "participants",
+                    "solo",
+                    "readyPlayerIds",
+                    "finishedPlayerIds",
+                    "timing"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "lastRound": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "round": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "sessionId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 64,
+                      "description": "Minigame session id"
+                    },
+                    "minigameId": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9][a-z0-9-]{0,31}$",
+                      "description": "Minigame slug"
+                    },
+                    "solo": {
+                      "type": "boolean"
+                    },
+                    "entries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "playerId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64,
+                            "description": "Opaque player id"
+                          },
+                          "result": {
+                            "type": "object",
+                            "properties": {
+                              "outcome": {
+                                "type": "string",
+                                "enum": [
+                                  "success",
+                                  "failure",
+                                  "dnf"
+                                ]
+                              },
+                              "score": {
+                                "type": "number",
+                                "minimum": -1000000000,
+                                "maximum": 1000000000
+                              },
+                              "timeMs": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 3600000
+                              },
+                              "accuracy": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "errors": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 1000000
+                              },
+                              "rank": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 8
+                              },
+                              "normalized": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                              },
+                              "stats": {
+                                "type": "object",
+                                "propertyNames": {
+                                  "type": "string",
+                                  "maxLength": 32
+                                },
+                                "additionalProperties": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number"
+                                    },
+                                    {
+                                      "type": "string",
+                                      "maxLength": 64
+                                    },
+                                    {
+                                      "type": "boolean"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            "required": [
+                              "outcome"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "rank": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "points": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "playerId",
+                          "result",
+                          "rank",
+                          "points"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "round",
+                    "sessionId",
+                    "minigameId",
+                    "solo",
+                    "entries"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "standings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "playerId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64,
+                    "description": "Opaque player id"
+                  },
+                  "rank": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "score": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "previousRank": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 9007199254740991
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "delta": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "playerId",
+                  "rank",
+                  "score",
+                  "previousRank",
+                  "delta"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "final": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "standings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "playerId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64,
+                            "description": "Opaque player id"
+                          },
+                          "rank": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "score": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "previousRank": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "delta": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "playerId",
+                          "rank",
+                          "score",
+                          "previousRank",
+                          "delta"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "winnerIds": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 64,
+                        "description": "Opaque player id"
+                      }
+                    },
+                    "rounds": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "round": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 9007199254740991
+                          },
+                          "sessionId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 64,
+                            "description": "Minigame session id"
+                          },
+                          "minigameId": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9][a-z0-9-]{0,31}$",
+                            "description": "Minigame slug"
+                          },
+                          "solo": {
+                            "type": "boolean"
+                          },
+                          "entries": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "playerId": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 64,
+                                  "description": "Opaque player id"
+                                },
+                                "result": {
+                                  "type": "object",
+                                  "properties": {
+                                    "outcome": {
+                                      "type": "string",
+                                      "enum": [
+                                        "success",
+                                        "failure",
+                                        "dnf"
+                                      ]
+                                    },
+                                    "score": {
+                                      "type": "number",
+                                      "minimum": -1000000000,
+                                      "maximum": 1000000000
+                                    },
+                                    "timeMs": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 3600000
+                                    },
+                                    "accuracy": {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
+                                    },
+                                    "errors": {
+                                      "type": "integer",
+                                      "minimum": 0,
+                                      "maximum": 1000000
+                                    },
+                                    "rank": {
+                                      "type": "integer",
+                                      "minimum": 1,
+                                      "maximum": 8
+                                    },
+                                    "normalized": {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
+                                    },
+                                    "stats": {
+                                      "type": "object",
+                                      "propertyNames": {
+                                        "type": "string",
+                                        "maxLength": 32
+                                      },
+                                      "additionalProperties": {
+                                        "anyOf": [
+                                          {
+                                            "type": "number"
+                                          },
+                                          {
+                                            "type": "string",
+                                            "maxLength": 64
+                                          },
+                                          {
+                                            "type": "boolean"
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "outcome"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "rank": {
+                                  "type": "integer",
+                                  "minimum": 1,
+                                  "maximum": 9007199254740991
+                                },
+                                "points": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "playerId",
+                                "result",
+                                "rank",
+                                "points"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "round",
+                          "sessionId",
+                          "minigameId",
+                          "solo",
+                          "entries"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "standings",
+                    "winnerIds",
+                    "rounds"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "matchId",
+            "phase",
+            "phaseStartedAt",
+            "phaseEndsAt",
+            "phaseEndsExactly",
+            "round",
+            "totalRounds",
+            "minigame",
+            "lastRound",
+            "standings",
+            "final"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "rev",
+        "serverTime",
+        "lobby",
+        "match"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "playerId",
+    "sessionToken",
+    "snapshot"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "__schema0": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/__schema0"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/__schema0"
+          }
+        }
+      ]
+    }
+  },
+  "title": "messages/client/room.join.reply",
+  "$comment": "GENERATED by `npm run contract:generate` from shared/src/contracts — do not edit."
+}

@@ -1,0 +1,273 @@
+{
+  "description": "Between two rounds: standings with previousRank / delta.",
+  "you": "p_9znALyUbhS",
+  "snapshot": {
+    "rev": 42,
+    "serverTime": 1700000031700,
+    "lobby": {
+      "code": "MPDV",
+      "hostId": "p_9znALyUbhS",
+      "players": [
+        {
+          "id": "p_9znALyUbhS",
+          "nickname": "Capitaine",
+          "characterId": "fox",
+          "seat": 0,
+          "isHost": true,
+          "ready": true,
+          "connection": "connected",
+          "score": 1,
+          "joinedAt": 1700000000000
+        },
+        {
+          "id": "p_bWFkMLkmKJ",
+          "nickname": "Zoé",
+          "characterId": "bull",
+          "seat": 1,
+          "isHost": false,
+          "ready": true,
+          "connection": "connected",
+          "score": 3,
+          "joinedAt": 1700000000000
+        },
+        {
+          "id": "p_WClCa0ImLS",
+          "nickname": "Momo",
+          "characterId": "cat",
+          "seat": 2,
+          "isHost": false,
+          "ready": true,
+          "connection": "connected",
+          "score": 5,
+          "joinedAt": 1700000000400
+        },
+        {
+          "id": "p_NqIlg6uw2Z",
+          "nickname": "Lulu",
+          "characterId": null,
+          "seat": 3,
+          "isHost": false,
+          "ready": true,
+          "connection": "connected",
+          "score": 7,
+          "joinedAt": 1700000000800
+        },
+        {
+          "id": "p_YxBcIMx-u7",
+          "nickname": "Titouan",
+          "characterId": "dog",
+          "seat": 4,
+          "isHost": false,
+          "ready": true,
+          "connection": "connected",
+          "score": 10,
+          "joinedAt": 1700000001200
+        },
+        {
+          "id": "p_x9nyWAL3xu",
+          "nickname": "Inès",
+          "characterId": "chicken",
+          "seat": 5,
+          "isHost": false,
+          "ready": true,
+          "connection": "connected",
+          "score": 1,
+          "joinedAt": 1700000001600
+        },
+        {
+          "id": "p_hEeXQ5M5qS",
+          "nickname": "Sacha",
+          "characterId": null,
+          "seat": 6,
+          "isHost": false,
+          "ready": true,
+          "connection": "connected",
+          "score": 2,
+          "joinedAt": 1700000002000
+        },
+        {
+          "id": "p_7fm_JswRHM",
+          "nickname": "Nour",
+          "characterId": "rooster",
+          "seat": 7,
+          "isHost": false,
+          "ready": true,
+          "connection": "connected",
+          "score": 1,
+          "joinedAt": 1700000002400
+        }
+      ],
+      "config": {
+        "rounds": 5,
+        "minigamePool": null
+      },
+      "maxPlayers": 8,
+      "canStart": false
+    },
+    "match": {
+      "matchId": "m_uBgz4N9OVI",
+      "phase": "INTERMISSION",
+      "phaseStartedAt": 1700000031700,
+      "phaseEndsAt": 1700000035700,
+      "phaseEndsExactly": true,
+      "round": 1,
+      "totalRounds": 5,
+      "minigame": null,
+      "lastRound": {
+        "round": 1,
+        "sessionId": "m_uBgz4N9OVI.r1",
+        "minigameId": "course-couloir",
+        "solo": false,
+        "entries": [
+          {
+            "playerId": "p_YxBcIMx-u7",
+            "result": {
+              "outcome": "success",
+              "score": 100,
+              "timeMs": 8600,
+              "normalized": 0.95
+            },
+            "rank": 1,
+            "points": 10
+          },
+          {
+            "playerId": "p_NqIlg6uw2Z",
+            "result": {
+              "outcome": "success",
+              "score": 100,
+              "timeMs": 9600,
+              "normalized": 0.8666666666666667
+            },
+            "rank": 2,
+            "points": 7
+          },
+          {
+            "playerId": "p_WClCa0ImLS",
+            "result": {
+              "outcome": "success",
+              "score": 100,
+              "timeMs": 10400,
+              "normalized": 0.8
+            },
+            "rank": 3,
+            "points": 5
+          },
+          {
+            "playerId": "p_bWFkMLkmKJ",
+            "result": {
+              "outcome": "success",
+              "score": 100,
+              "timeMs": 10800,
+              "normalized": 0.7666666666666667
+            },
+            "rank": 4,
+            "points": 3
+          },
+          {
+            "playerId": "p_hEeXQ5M5qS",
+            "result": {
+              "outcome": "success",
+              "score": 100,
+              "timeMs": 11000,
+              "normalized": 0.75
+            },
+            "rank": 5,
+            "points": 2
+          },
+          {
+            "playerId": "p_7fm_JswRHM",
+            "result": {
+              "outcome": "success",
+              "score": 100,
+              "timeMs": 11200,
+              "normalized": 0.7333333333333333
+            },
+            "rank": 6,
+            "points": 1
+          },
+          {
+            "playerId": "p_x9nyWAL3xu",
+            "result": {
+              "outcome": "success",
+              "score": 100,
+              "timeMs": 12900,
+              "normalized": 0.5916666666666667
+            },
+            "rank": 7,
+            "points": 1
+          },
+          {
+            "playerId": "p_9znALyUbhS",
+            "result": {
+              "outcome": "success",
+              "score": 100,
+              "timeMs": 13100,
+              "normalized": 0.575
+            },
+            "rank": 8,
+            "points": 1
+          }
+        ]
+      },
+      "standings": [
+        {
+          "playerId": "p_YxBcIMx-u7",
+          "rank": 1,
+          "score": 10,
+          "previousRank": 1,
+          "delta": 10
+        },
+        {
+          "playerId": "p_NqIlg6uw2Z",
+          "rank": 2,
+          "score": 7,
+          "previousRank": 1,
+          "delta": 7
+        },
+        {
+          "playerId": "p_WClCa0ImLS",
+          "rank": 3,
+          "score": 5,
+          "previousRank": 1,
+          "delta": 5
+        },
+        {
+          "playerId": "p_bWFkMLkmKJ",
+          "rank": 4,
+          "score": 3,
+          "previousRank": 1,
+          "delta": 3
+        },
+        {
+          "playerId": "p_hEeXQ5M5qS",
+          "rank": 5,
+          "score": 2,
+          "previousRank": 1,
+          "delta": 2
+        },
+        {
+          "playerId": "p_9znALyUbhS",
+          "rank": 6,
+          "score": 1,
+          "previousRank": 1,
+          "delta": 1
+        },
+        {
+          "playerId": "p_x9nyWAL3xu",
+          "rank": 6,
+          "score": 1,
+          "previousRank": 1,
+          "delta": 1
+        },
+        {
+          "playerId": "p_7fm_JswRHM",
+          "rank": 6,
+          "score": 1,
+          "previousRank": 1,
+          "delta": 1
+        }
+      ],
+      "final": null
+    }
+  }
+}

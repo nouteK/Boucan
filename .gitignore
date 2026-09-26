@@ -1,0 +1,8 @@
+# Common to every sub-project (Boucan v2 = backend, Boucan-v2_Astra = frontend)
+node_modules/
+dist/
+coverage/
+.env
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,129 @@
+{
+  "description": "Reply payload of `hello` (ServerInfo): limits, timings, minigame definitions.",
+  "serverInfo": {
+    "protocolVersion": 1,
+    "contractRevision": "1.0.0",
+    "serverVersion": "test",
+    "environment": "test",
+    "serverTime": 1700000000000,
+    "connectionId": "c1",
+    "limits": {
+      "minPlayers": 1,
+      "maxPlayers": 8,
+      "roundOptions": [
+        3,
+        5,
+        8,
+        10
+      ],
+      "defaultRounds": 5,
+      "nicknameMinLength": 2,
+      "nicknameMaxLength": 16,
+      "maxMessageBytes": 16384,
+      "characterIds": null
+    },
+    "timings": {
+      "matchStartingMs": 3000,
+      "preparingMinMs": 3000,
+      "preparingMaxMs": 12000,
+      "countdownMs": 3000,
+      "endingMinMs": 800,
+      "reportGraceMs": 3000,
+      "resultsMs": 5000,
+      "intermissionMs": 4000,
+      "matchResultsMs": null
+    },
+    "reconnect": {
+      "lobbyGraceMs": 30000,
+      "matchGraceMs": 90000
+    },
+    "minigames": [
+      {
+        "id": "sonnerie",
+        "authority": "server",
+        "minPlayers": 1,
+        "maxPlayers": 8,
+        "durationMs": 7000,
+        "scoring": {
+          "strategy": "placement",
+          "rankBy": [
+            {
+              "metric": "timeMs",
+              "order": "asc"
+            }
+          ]
+        },
+        "acceptsReports": false,
+        "acceptsInputs": true,
+        "inputRate": 5
+      },
+      {
+        "id": "interro-surprise",
+        "authority": "local",
+        "minPlayers": 1,
+        "maxPlayers": 8,
+        "durationMs": 20000,
+        "scoring": {
+          "strategy": "placement",
+          "rankBy": [
+            {
+              "metric": "score",
+              "order": "desc"
+            },
+            {
+              "metric": "timeMs",
+              "order": "asc"
+            }
+          ],
+          "failures": "ranked"
+        },
+        "acceptsReports": true,
+        "acceptsInputs": false,
+        "inputRate": 0
+      },
+      {
+        "id": "course-couloir",
+        "authority": "relay",
+        "minPlayers": 1,
+        "maxPlayers": 8,
+        "durationMs": 20000,
+        "scoring": {
+          "strategy": "placement",
+          "rankBy": [
+            {
+              "metric": "timeMs",
+              "order": "asc"
+            },
+            {
+              "metric": "score",
+              "order": "desc"
+            }
+          ],
+          "failures": "ranked"
+        },
+        "acceptsReports": false,
+        "acceptsInputs": true,
+        "inputRate": 15
+      },
+      {
+        "id": "fausse-couleur",
+        "authority": "local",
+        "minPlayers": 1,
+        "maxPlayers": 8,
+        "durationMs": 8000,
+        "scoring": {
+          "strategy": "threshold",
+          "rankBy": [
+            {
+              "metric": "timeMs",
+              "order": "asc"
+            }
+          ]
+        },
+        "acceptsReports": true,
+        "acceptsInputs": false,
+        "inputRate": 0
+      }
+    ]
+  }
+}

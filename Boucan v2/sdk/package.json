@@ -1,0 +1,21 @@
+{
+  "name": "@boucan/sdk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Client réseau de référence pour BOUCAN (BoucanClient), serveur local en mémoire, bots et outils d'intégration.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./local": "./src/local/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "check:integration": "tsx scripts/integration-check.ts",
+    "bots": "tsx scripts/bots.ts"
+  },
+  "dependencies": {
+    "@boucan/server": "*",
+    "@boucan/shared": "*",
+    "zod": "^4.6.5"
+  }
+}
