@@ -1,10 +1,10 @@
 import {
   createRng,
-  JsonValue,
-  PlayerResult as PlayerResultSchema,
+  type JsonValue,
+  type MicrogameInfo,
   type MiniGameEventMessage,
-  type MiniGameSession,
   type MiniGameStateMessage,
+  type Outcome,
   type PlayerResult,
   type TypedPayload,
 } from '@boucan/shared';
@@ -12,63 +12,57 @@ import type { GameConfig } from '../../config/game-config';
 import { fail } from '../errors';
 import type { Logger } from '../logger';
 import { RateLimiter } from '../util/rate-limiter';
-import type { MiniGameContext, MiniGameModule, MiniGameRuntime, Rejection } from './api';
-import { effectiveDuration } from './registry';
+import type { MiniGameContext, MiniGameModule, MiniGameRuntime, Rejection, RoundOutcome } from './api';
 
-export interface SessionDeps {
+export interface RoundDeps {
   config: GameConfig;
   logger: Logger;
   isConnected(playerId: string): boolean;
+  isBot(playerId: string): boolean;
+  skillOf(playerId: string): number;
   rttOf(playerId: string): number;
   emitState(message: MiniGameStateMessage): void;
   emitEvent(message: MiniGameEventMessage, to?: string): void;
-  /** Something visible in the snapshot changed (ready / finished lists, timing). */
+  /** Something visible in the snapshot changed (live progress). */
   markDirty(): void;
 }
 
-export interface SessionOptions {
-  sessionId: string;
-  round: number;
+export interface RoundOptions {
+  roundId: string;
+  info: MicrogameInfo;
   seed: number;
   secretSeed: number;
+  level: number;
+  tempo: number;
   participants: readonly string[];
-  now: number;
+  activeAt: number;
+  durationMs: number;
 }
 
 const isRejection = (value: unknown): value is Rejection =>
   typeof value === 'object' && value !== null && 'reject' in value;
 
 /**
- * One played minigame: wraps a module with everything generic — readiness,
- * timing, input routing and rate limiting, report bookkeeping, state
- * throttling and crash isolation. A module that throws never breaks the match:
- * the error is logged and the round degrades gracefully (dnf at worst).
+ * One played microgame on the server: wraps a module with everything generic
+ * — start at activeAt, input routing and rate limiting, one report per player,
+ * live progress, throttled shared state, crash isolation. A module that throws
+ * never breaks the match: the round degrades to "dnf" for everyone.
  */
-export class MiniGameSessionRunner {
-  readonly sessionId: string;
-  readonly round: number;
-  readonly seed: number;
+export class RoundRunner {
+  readonly roundId: string;
+  readonly info: MicrogameInfo;
   readonly participants: readonly string[];
-  readonly solo: boolean;
+  readonly activeAt: number;
+  readonly endsAt: number;
   readonly durationMs: number;
-  readonly params: JsonValue;
 
-  private readonly ready = new Set<string>();
-  private readonly finished = new Set<string>();
-  private readonly reported = new Set<string>();
-  private readonly limiters = new Map<string, RateLimiter>();
   private runtime: MiniGameRuntime | null = null;
   private crashed = false;
+  private readonly progress = new Map<string, RoundOutcome>();
+  private readonly reported = new Set<string>();
+  private readonly limiters = new Map<string, RateLimiter>();
   private readonly logger: Logger;
-
-  private readonly timing: {
-    preparingAt: number;
-    countdownAt: number | null;
-    activeAt: number | null;
-    endsAt: number | null;
-    endedAt: number | null;
-  };
-
+  private clock: number;
   private state: JsonValue | undefined;
   private stateDirty = false;
   private stateSeq = 0;
@@ -76,133 +70,74 @@ export class MiniGameSessionRunner {
 
   constructor(
     readonly module: MiniGameModule,
-    options: SessionOptions,
-    private readonly deps: SessionDeps,
+    private readonly options: RoundOptions,
+    private readonly deps: RoundDeps,
   ) {
-    this.sessionId = options.sessionId;
-    this.round = options.round;
-    this.seed = options.seed;
-    this.secretSeed = options.secretSeed;
+    this.roundId = options.roundId;
+    this.info = options.info;
     this.participants = [...options.participants];
-    this.solo = this.participants.length === 1;
-    this.durationMs = effectiveDuration(module, deps.config.minigames.durationScale);
-    this.logger = deps.logger.child({ session: this.sessionId, minigame: module.id });
-    this.timing = {
-      preparingAt: options.now,
-      countdownAt: null,
-      activeAt: null,
-      endsAt: null,
-      endedAt: null,
-    };
-    this.clock = options.now;
-    this.params = this.prepareParams();
+    this.activeAt = options.activeAt;
+    this.durationMs = options.durationMs;
+    this.endsAt = options.activeAt + options.durationMs;
+    this.clock = options.activeAt;
+    this.logger = deps.logger.child({ session: options.roundId, minigame: options.info.id });
   }
 
-  private readonly secretSeed: number;
-  /** Time of the call being processed; stamps events emitted by the module. */
-  private clock: number;
-
-  // ─── Lifecycle ─────────────────────────────────────────────────────────────
-
-  private prepareParams(): JsonValue {
-    try {
-      const params = this.module.prepare?.({
-        seed: this.seed,
-        rng: createRng(this.seed),
-        participants: this.participants,
-        solo: this.solo,
-        durationMs: this.durationMs,
-      });
-      if (params === undefined) return {};
-      if (!JsonValue.safeParse(params).success) throw new Error('params are not JSON');
-      return params;
-    } catch (error) {
-      this.logger.error('prepare() failed, using empty params', {}, error);
-      return {};
-    }
+  get started(): boolean {
+    return this.runtime !== null;
   }
 
-  get activeAt(): number | null {
-    return this.timing.activeAt;
-  }
-
-  get endedAt(): number | null {
-    return this.timing.endedAt;
-  }
-
-  get isRunning(): boolean {
-    return this.runtime !== null && this.timing.endedAt === null;
+  /** Live outcomes, for the snapshot. */
+  progressRecord(): Record<string, Outcome> {
+    return Object.fromEntries(this.progress);
   }
 
   isParticipant(playerId: string): boolean {
     return this.participants.includes(playerId);
   }
 
-  markReady(playerId: string): void {
-    if (!this.isParticipant(playerId)) fail('NOT_PARTICIPANT');
-    if (this.ready.has(playerId)) return;
-    this.ready.add(playerId);
-    this.deps.markDirty();
-  }
-
-  /** Every connected participant finished loading. */
-  allReady(): boolean {
-    return this.participants.every((id) => this.ready.has(id) || !this.deps.isConnected(id));
-  }
-
-  scheduleCountdown(now: number, countdownMs: number): void {
-    this.timing.countdownAt = now;
-    this.timing.activeAt = now + countdownMs;
-    this.timing.endsAt = this.timing.activeAt + this.durationMs;
-    this.deps.markDirty();
-  }
-
-  activate(now: number): void {
+  start(now: number): void {
     this.clock = now;
-    const activeAt = this.timing.activeAt ?? now;
-    const endsAt = this.timing.endsAt ?? activeAt + this.durationMs;
     const ctx: MiniGameContext = {
-      sessionId: this.sessionId,
-      seed: this.seed,
-      params: this.params,
+      roundId: this.roundId,
+      info: this.info,
+      seed: this.options.seed,
+      level: this.options.level,
+      tempo: this.options.tempo,
       participants: this.participants,
-      solo: this.solo,
-      activeAt,
-      endsAt,
+      activeAt: this.activeAt,
+      endsAt: this.endsAt,
       durationMs: this.durationMs,
-      secretRng: createRng(this.secretSeed),
+      rng: createRng(this.options.secretSeed),
       logger: this.logger,
       isConnected: (id) => this.deps.isConnected(id),
+      isBot: (id) => this.deps.isBot(id),
+      skillOf: (id) => this.deps.skillOf(id),
       rttOf: (id) => Math.min(this.deps.rttOf(id), this.deps.config.network.maxLagCompensationMs * 2),
       setState: (state) => {
         this.state = state;
         this.stateDirty = true;
       },
-      emit: (event: TypedPayload, to?: string) => {
-        this.deps.emitEvent({ sessionId: this.sessionId, serverTime: this.clock, event }, to);
-      },
-      markFinished: (id) => {
-        if (this.isParticipant(id) && !this.finished.has(id)) {
-          this.finished.add(id);
-          this.deps.markDirty();
-        }
+      emit: (event: TypedPayload, to?: string) =>
+        this.deps.emitEvent({ roundId: this.roundId, serverTime: this.clock, event }, to),
+      settle: (id, outcome) => {
+        if (!this.isParticipant(id) || this.progress.get(id) === outcome) return;
+        this.progress.set(id, outcome);
+        this.deps.markDirty();
       },
     };
     try {
       this.runtime = this.module.start(ctx);
     } catch (error) {
-      this.logger.error('start() failed, the round will end with no result', {}, error);
+      this.logger.error('start() failed, the round ends with no result', {}, error);
       this.crashed = true;
       this.runtime = { results: () => ({}), isComplete: () => true };
     }
-    this.logger.debug('minigame active', { participants: this.participants.length });
   }
 
   tick(now: number): void {
     this.clock = now;
-    if (this.runtime?.onTick && !this.crashed) {
-      this.guard('onTick', () => this.runtime!.onTick!(now));
-    }
+    if (this.runtime?.onTick && !this.crashed) this.guard('onTick', () => this.runtime!.onTick!(now));
     this.flushState(now, false);
   }
 
@@ -211,57 +146,34 @@ export class MiniGameSessionRunner {
     return this.guard('isComplete', () => this.runtime?.isComplete?.(now) ?? false) ?? true;
   }
 
-  end(now: number): void {
-    if (this.timing.endedAt !== null) return;
-    this.timing.endedAt = now;
-    this.clock = now;
+  /** Final outcome of every participant (missing → dnf). */
+  results(now: number): Record<string, Outcome> {
     this.flushState(now, true);
-    this.deps.markDirty();
-  }
-
-  isSettled(now: number): boolean {
-    if (this.crashed) return true;
-    return this.guard('isSettled', () => this.runtime?.isSettled?.(now) ?? true) ?? true;
-  }
-
-  /** Final raw results; participants without a valid result are dnf. */
-  results(now: number): Record<string, PlayerResult> {
     const raw = this.crashed ? {} : (this.guard('results', () => this.runtime?.results(now)) ?? {});
-    const out: Record<string, PlayerResult> = {};
+    const out: Record<string, Outcome> = {};
     for (const id of this.participants) {
-      const result = raw[id];
-      out[id] = result && isValidResult(result) ? result : { outcome: 'dnf' };
+      const r = raw[id];
+      out[id] = r === 'success' || r === 'failure' ? r : 'dnf';
     }
     return out;
   }
 
-  // ─── Player activity ───────────────────────────────────────────────────────
-
-  handleInput(playerId: string, input: unknown, clientAt: number | undefined, seq: number | undefined, now: number): void {
+  handleInput(playerId: string, input: unknown, clientAt: number | undefined, now: number): void {
     const spec = this.module.input;
     if (!spec) fail('INPUT_REJECTED', { reason: 'noInputs' });
     if (!this.isParticipant(playerId)) fail('NOT_PARTICIPANT');
-    const runtime = this.runtime;
-    const { activeAt, endedAt } = this.timing;
-    if (runtime === null || activeAt === null) fail('INVALID_PHASE', { reason: 'notStarted' });
-    // Inputs are accepted slightly after the end to compensate for latency.
-    const lag = this.deps.config.network.maxLagCompensationMs;
-    if (endedAt !== null && now > endedAt + lag) fail('INVALID_PHASE', { reason: 'ended' });
+    if (this.runtime === null) fail('INVALID_PHASE', { reason: 'notStarted' });
     let limiter = this.limiters.get(playerId);
-    if (!limiter) {
-      limiter = new RateLimiter(Math.ceil(spec.ratePerSecond), spec.ratePerSecond, now);
-      this.limiters.set(playerId, limiter);
-    }
+    if (!limiter) this.limiters.set(playerId, (limiter = new RateLimiter(Math.ceil(spec.ratePerSecond), spec.ratePerSecond, now)));
     if (!limiter.take(now)) fail('RATE_LIMITED', { reason: 'inputRate' });
     const parsed = spec.schema.safeParse(input);
     if (!parsed.success) fail('INPUT_REJECTED', { reason: 'invalid' });
-    const upper = endedAt ?? now;
-    const at = Math.max(activeAt, Math.min(upper, Math.max(clientAt ?? now, now - lag), now));
-    if (this.crashed || !runtime.onInput) return;
+    if (this.crashed || !this.runtime.onInput) return;
+    const lag = this.deps.config.network.maxLagCompensationMs;
+    const at = Math.max(this.activeAt, Math.min(now, Math.max(clientAt ?? now, now - lag)));
     this.clock = now;
-    const verdict = this.guard('onInput', () =>
-      runtime.onInput!(playerId, parsed.data, seq === undefined ? { now, at } : { now, at, seq }),
-    );
+    const runtime = this.runtime;
+    const verdict = this.guard('onInput', () => runtime.onInput!(playerId, parsed.data, { now, at }));
     if (isRejection(verdict)) fail('INPUT_REJECTED', { reason: verdict.reject });
   }
 
@@ -269,7 +181,6 @@ export class MiniGameSessionRunner {
     if (!this.module.acceptsReports) fail('REPORT_REJECTED', { reason: 'notAccepted' });
     if (!this.isParticipant(playerId)) fail('NOT_PARTICIPANT');
     if (this.runtime === null) fail('INVALID_PHASE', { reason: 'notStarted' });
-    if (result.outcome === 'dnf') fail('REPORT_REJECTED', { reason: 'dnfReserved' });
     if (this.reported.has(playerId)) fail('REPORT_REJECTED', { reason: 'duplicate' });
     if (this.crashed || !this.runtime.onReport) fail('REPORT_REJECTED', { reason: 'notAccepted' });
     this.clock = now;
@@ -277,44 +188,12 @@ export class MiniGameSessionRunner {
     const verdict = this.guard('onReport', () => runtime.onReport!(playerId, result, now));
     if (isRejection(verdict)) fail('REPORT_REJECTED', { reason: verdict.reject });
     this.reported.add(playerId);
-    this.logger.debug('report accepted', { player: playerId, outcome: result.outcome });
   }
 
-  onPlayerDisconnected(playerId: string, now: number): void {
-    if (this.isRunning && this.isParticipant(playerId)) {
-      this.guard('onPlayerDisconnected', () => this.runtime!.onPlayerDisconnected?.(playerId, now));
-    }
-  }
-
-  onPlayerReconnected(playerId: string, now: number): void {
-    if (this.isRunning && this.isParticipant(playerId)) {
-      this.guard('onPlayerReconnected', () => this.runtime!.onPlayerReconnected?.(playerId, now));
-    }
-  }
-
-  /** Resends the latest shared state (e.g. to a player who just reconnected). */
   latestState(): MiniGameStateMessage | null {
     if (this.state === undefined || this.stateSeq === 0) return null;
-    return { sessionId: this.sessionId, seq: this.stateSeq, serverTime: this.lastStateAt, state: this.state };
+    return { roundId: this.roundId, seq: this.stateSeq, serverTime: this.lastStateAt, state: this.state };
   }
-
-  toPublic(): MiniGameSession {
-    return {
-      sessionId: this.sessionId,
-      minigameId: this.module.id,
-      round: this.round,
-      authority: this.module.authority,
-      seed: this.seed,
-      params: this.params,
-      participants: [...this.participants],
-      solo: this.solo,
-      readyPlayerIds: this.participants.filter((id) => this.ready.has(id)),
-      finishedPlayerIds: this.participants.filter((id) => this.finished.has(id)),
-      timing: { ...this.timing, durationMs: this.durationMs },
-    };
-  }
-
-  // ─── Internals ─────────────────────────────────────────────────────────────
 
   private flushState(now: number, force: boolean): void {
     if (!this.stateDirty || this.state === undefined) return;
@@ -323,7 +202,7 @@ export class MiniGameSessionRunner {
     this.stateDirty = false;
     this.stateSeq += 1;
     this.lastStateAt = now;
-    this.deps.emitState({ sessionId: this.sessionId, seq: this.stateSeq, serverTime: now, state: this.state });
+    this.deps.emitState({ roundId: this.roundId, seq: this.stateSeq, serverTime: now, state: this.state });
   }
 
   private guard<T>(hook: string, fn: () => T): T | undefined {
@@ -331,13 +210,9 @@ export class MiniGameSessionRunner {
       return fn();
     } catch (error) {
       this.logger.error(`module ${hook}() threw`, {}, error);
-      if (hook !== 'onInput' && hook !== 'onReport') this.crashed = true;
       if (hook === 'onInput' || hook === 'onReport') fail('INTERNAL', { reason: 'moduleError' });
+      this.crashed = true;
       return undefined;
     }
   }
-}
-
-function isValidResult(result: unknown): result is PlayerResult {
-  return PlayerResultSchema.safeParse(result).success;
 }

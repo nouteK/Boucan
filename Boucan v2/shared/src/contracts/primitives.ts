@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { GAME_RULES } from './rules';
 
-/** Server wall-clock time in milliseconds since the Unix epoch. See docs/architecture/GAME_LIFECYCLE.md#temps. */
+/** Server wall-clock time in milliseconds since the Unix epoch. See docs/PROTOCOL.md (time and clock sync). */
 export const Timestamp = z.number().int().nonnegative().describe('Server epoch time (ms)');
 export type Timestamp = z.infer<typeof Timestamp>;
 
@@ -36,10 +36,6 @@ export const CharacterId = z
   .regex(/^[a-z0-9][a-z0-9_-]{0,31}$/, 'Invalid character id')
   .describe('Logical character id (frontend-owned roster)');
 export type CharacterId = z.infer<typeof CharacterId>;
-
-/** Id of one played minigame (one per round). Actions carrying another id are stale. */
-export const SessionId = z.string().min(1).max(64).describe('Minigame session id');
-export type SessionId = z.infer<typeof SessionId>;
 
 /** Request id chosen by the client to match a `reply`. */
 export const RequestId = z.string().min(1).max(32);

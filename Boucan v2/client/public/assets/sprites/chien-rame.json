@@ -1,0 +1,88 @@
+{
+ "frames": {
+  "p1": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 383,
+    "h": 442
+   },
+   "anchor": {
+    "x": 0.7326,
+    "y": 0.8194
+   }
+  },
+  "p2": {
+   "frame": {
+    "x": 383,
+    "y": 0,
+    "w": 383,
+    "h": 442
+   },
+   "anchor": {
+    "x": 0.6797,
+    "y": 0.8082
+   }
+  },
+  "p3": {
+   "frame": {
+    "x": 766,
+    "y": 0,
+    "w": 383,
+    "h": 442
+   },
+   "anchor": {
+    "x": 0.7394,
+    "y": 0.8299
+   }
+  },
+  "p4": {
+   "frame": {
+    "x": 1149,
+    "y": 0,
+    "w": 383,
+    "h": 442
+   },
+   "anchor": {
+    "x": 0.7323,
+    "y": 0.8194
+   }
+  }
+ },
+ "meta": {
+  "note": "Chien assis qui pagaie (pagaie comprise). p1 repos, p2-p3 coup de pagaie, p4 épuisé.",
+  "anims": {
+   "rest": {
+    "frames": [
+     {
+      "frame": "p1",
+      "ms": 1000
+     }
+    ],
+    "loop": true
+   },
+   "stroke": {
+    "frames": [
+     {
+      "frame": "p2",
+      "ms": 130
+     },
+     {
+      "frame": "p3",
+      "ms": 190
+     }
+    ],
+    "next": "rest"
+   },
+   "tired": {
+    "frames": [
+     {
+      "frame": "p4",
+      "ms": 1000
+     }
+    ],
+    "loop": true
+   }
+  }
+ }
+}

@@ -59,6 +59,12 @@ export const HANDLERS: { [T in Exclude<ClientMessageType, 'hello'>]: Handler<T> 
     return {};
   },
 
+  'room.addBot': (ctx) => {
+    const { room, playerId } = seated(ctx);
+    room.addBot(playerId, ctx.now);
+    return {};
+  },
+
   'room.kick': (ctx, p) => {
     const { room, playerId } = seated(ctx);
     room.kick(playerId, p.playerId, ctx.now);
@@ -101,21 +107,15 @@ export const HANDLERS: { [T in Exclude<ClientMessageType, 'hello'>]: Handler<T> 
     return {};
   },
 
-  'minigame.ready': (ctx, p) => {
-    const { room, playerId } = seated(ctx);
-    room.minigameReady(playerId, p.sessionId, ctx.now);
-    return {};
-  },
-
   'minigame.input': (ctx, p) => {
     const { room, playerId } = seated(ctx);
-    room.minigameInput(playerId, p.sessionId, p.input, p.at, p.seq, ctx.now);
+    room.minigameInput(playerId, p.roundId, p.input, p.at, ctx.now);
     return {};
   },
 
   'minigame.report': (ctx, p) => {
     const { room, playerId } = seated(ctx);
-    room.minigameReport(playerId, p.sessionId, p.result, ctx.now);
+    room.minigameReport(playerId, p.roundId, p.result, ctx.now);
     return {};
   },
 };

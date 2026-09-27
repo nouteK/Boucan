@@ -106,68 +106,66 @@ describe('host', () => {
   });
 
   it('host disconnection mid-match does not stop the match', () => {
-    harness = new Harness({ enabled: ['fausse-couleur'] });
-    const { host, players } = setupRoom(harness, 3, { rounds: 3 });
-    players.forEach((p) => p.autoplay());
+    harness = new Harness();
+    const { host, players } = setupRoom(harness, 3, { config: { length: 'court', lives: 3 } });
+    players.forEach((p) => p.autoplay('random'));
     host.ok('match.start');
     harness.advance(500);
     host.close();
     const other = players[1]!;
-    harness.advanceUntil(() => other.phase === 'MATCH_RESULTS');
+    harness.advanceUntil(() => other.phase === 'STAGE_RESULTS');
     expect(other.snapshot.lobby.hostId).toBe(other.playerId);
     other.ok('match.returnToLobby');
   });
 });
 
 describe('match disconnections', () => {
-  it('a player disconnected during a minigame is dnf, the match goes on, they can come back', () => {
-    harness = new Harness({ enabled: ['interro-surprise'] });
-    const { host, players } = setupRoom(harness, 3, { rounds: 3 });
-    players.forEach((p) => p.autoplay());
+  it('a player disconnected during a microgame is dnf (a life lost), the match goes on, they can come back', () => {
+    harness = new Harness();
+    const { host, players } = setupRoom(harness, 3);
+    players.forEach((p) => p.autoplay('win'));
     const quitter = players[2]!;
     const token = quitter.sessionToken!;
     host.ok('match.start');
-    harness.advanceUntil(() => host.phase === 'MINIGAME_ACTIVE');
+    harness.advanceUntil(() => host.phase === 'MICROGAME');
     quitter.close();
-    harness.advanceUntil(() => host.phase === 'MINIGAME_RESULTS');
-    const round1 = host.snapshot.match.lastRound!;
-    expect(round1.entries.find((e) => e.playerId === quitter.playerId)).toMatchObject({
-      result: { outcome: 'dnf' },
-      points: 0,
+    harness.advanceUntil(() => host.phase === 'VERDICT');
+    expect(host.snapshot.match.verdict!.entries.find((e) => e.playerId === quitter.playerId)).toMatchObject({
+      outcome: 'dnf',
+      livesDelta: -1,
     });
-    // The minigame did not wait for the missing player's report beyond the grace.
-    const back = harness.client().autoplay();
+    const back = harness.client().autoplay('win');
     back.ok('room.resume', { sessionToken: token });
-    harness.advanceUntil(() => host.phase === 'MATCH_RESULTS');
-    const rounds = host.snapshot.match.final!.rounds;
-    expect(rounds.slice(1).every((r) => r.entries.find((e) => e.playerId === quitter.playerId)!.result.outcome !== 'dnf')).toBe(true);
+    harness.advanceUntil(() => host.phase === 'VERDICT' && host.snapshot.match.counter === 3);
+    expect(host.snapshot.match.verdict!.entries.find((e) => e.playerId === quitter.playerId)!.outcome).not.toBe('dnf');
+    expect(back.me()).toMatchObject({ lives: 3, alive: true });
   });
 
-  it('a player gone for good is marked left, kept in standings, purged in the lobby', () => {
-    harness = new Harness({ enabled: ['fausse-couleur'] });
-    const { host, players } = setupRoom(harness, 2, { rounds: 3 });
-    players.forEach((p) => p.autoplay());
+  it('a player gone for good forfeits: marked left, eliminated, kept in the ranking, purged in the lobby', () => {
+    harness = new Harness();
+    const { host, players } = setupRoom(harness, 2, { bots: 1 });
+    players.forEach((p) => p.autoplay('win'));
     host.ok('match.start');
     const quitter = players[1]!;
-    harness.advanceUntil(() => host.phase === 'MINIGAME_RESULTS');
+    harness.advanceUntil(() => host.phase === 'MICROGAME');
     quitter.close();
     harness.advance(matchGraceMs + 100);
-    harness.advanceUntil(() => host.phase === 'MATCH_RESULTS');
-    expect(host.snapshot.lobby.players[1]!.connection).toBe('left');
-    expect(host.snapshot.match.final!.standings.map((s) => s.playerId)).toContain(quitter.playerId);
+    expect(host.snapshot.lobby.players[1]).toMatchObject({ connection: 'left', alive: false });
+    harness.advanceUntil(() => host.phase === 'STAGE_RESULTS');
+    expect(host.snapshot.match.final!.entries.map((e) => e.playerId)).toContain(quitter.playerId);
     host.ok('match.returnToLobby');
-    expect(host.snapshot.lobby.players.map((p) => p.id)).toEqual([host.playerId]);
+    expect(host.snapshot.lobby.players.map((p) => p.id)).not.toContain(quitter.playerId);
   });
 
-  it('an explicit leave mid-match marks the player left immediately', () => {
-    harness = new Harness({ enabled: ['fausse-couleur'] });
-    const { host, players } = setupRoom(harness, 3, { rounds: 3 });
-    players.forEach((p) => p.autoplay());
+  it('an explicit leave mid-match marks the player left and eliminated immediately', () => {
+    harness = new Harness();
+    const { host, players } = setupRoom(harness, 3, { config: { length: 'court' } });
+    players.forEach((p) => p.autoplay('random'));
     host.ok('match.start');
     harness.advance(300);
     players[2]!.ok('room.leave');
-    expect(host.snapshot.lobby.players[2]!.connection).toBe('left');
-    harness.advanceUntil(() => host.phase === 'MATCH_RESULTS');
+    expect(host.snapshot.lobby.players[2]).toMatchObject({ connection: 'left', alive: false, lives: 0 });
+    harness.advanceUntil(() => host.phase === 'STAGE_RESULTS');
   });
 
   it('a match with nobody connected is closed after emptyRoomTtlMs', () => {

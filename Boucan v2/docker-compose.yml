@@ -1,0 +1,34 @@
+# BOUCAN — production with Docker Compose (see docs/DEPLOYMENT.md).
+#
+#   docker compose up -d --build                     → http://localhost:3001
+#   docker compose --profile tunnel up -d --build    → + public HTTPS URL via Cloudflare
+#                                                      (docker compose logs tunnel | grep trycloudflare)
+#
+# Variables (ALLOWED_ORIGINS, TRUST_PROXY, BOUCAN_PORT, LOG_LEVEL) can be set in a local .env next to this file.
+name: boucan
+
+services:
+  boucan:
+    build: .
+    image: boucan:latest
+    container_name: boucan-game
+    restart: unless-stopped
+    ports:
+      - "${BOUCAN_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: production
+      # Comma-separated public URLs allowed to open the WebSocket (empty = any).
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      # true when players come through the tunnel / a reverse proxy (real client IPs).
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+  # Optional: temporary public URL (https://<random>.trycloudflare.com), no account needed.
+  # For a stable domain, use a named tunnel (cloudflared tunnel create) instead.
+  tunnel:
+    profiles: [tunnel]
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://boucan:3001
+    depends_on:
+      - boucan

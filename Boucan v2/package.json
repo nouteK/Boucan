@@ -2,25 +2,26 @@
   "name": "boucan",
   "version": "2.0.0",
   "private": true,
-  "description": "BOUCAN V2 — jeu navigateur multijoueur de micro-jeux (1 à 8 joueurs)",
+  "description": "BOUCAN — jeu navigateur multijoueur façon WarioWare : micro-jeux de 4 secondes, en ligne, 1 à 8 joueurs",
   "type": "module",
   "workspaces": [
     "shared",
     "server",
-    "sdk"
+    "sdk",
+    "client"
   ],
   "engines": {
     "node": ">=22.12"
   },
   "scripts": {
-    "dev": "npm run dev -w @boucan/server",
+    "dev": "node scripts/dev.mjs",
+    "dev:server": "npm run dev -w @boucan/server",
+    "dev:client": "npm run dev -w @boucan/client",
     "start": "npm run start -w @boucan/server",
-    "build": "npm run typecheck && npm run build -w @boucan/server",
+    "build": "npm run typecheck && npm run build -w @boucan/client && npm run build -w @boucan/server",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
     "test:watch": "vitest",
-    "contract:generate": "npm run generate -w @boucan/server",
-    "contract:check": "npm run generate:check -w @boucan/server",
     "check:integration": "npm run check:integration -w @boucan/sdk --",
     "bots": "npm run bots -w @boucan/sdk --"
   },

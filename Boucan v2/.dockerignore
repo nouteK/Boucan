@@ -1,0 +1,15 @@
+# The image builds everything from source: keep local builds, deps and secrets out.
+**/node_modules
+**/dist
+**/coverage
+.env
+.env.*
+!.env.example
+*.log
+.git
+.claude
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+docs

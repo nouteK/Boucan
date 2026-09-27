@@ -1,0 +1,32 @@
+{
+ "frames": {
+  "c1": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 386,
+    "h": 388
+   },
+   "anchor": {
+    "x": 0.5178,
+    "y": 0.9609
+   }
+  },
+  "c2": {
+   "frame": {
+    "x": 386,
+    "y": 0,
+    "w": 386,
+    "h": 388
+   },
+   "anchor": {
+    "x": 0.5811,
+    "y": 0.9574
+   }
+  }
+ },
+ "meta": {
+  "note": "Chien qui tire une corde (mains tendues vers la droite).",
+  "anims": {}
+ }
+}

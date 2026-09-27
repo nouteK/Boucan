@@ -1,9 +1,9 @@
 /**
  * @boucan/sdk — reference network client for BOUCAN frontends.
- * Guide: docs/integration/FRONTEND_BACKEND.md.
+ * Guide: docs/PROTOCOL.md.
  *
  *   import { BoucanClient } from '@boucan/sdk';
- *   const client = new BoucanClient({ url: 'ws://localhost:3001/ws', clientName: 'astra-web/0.1' });
+ *   const client = new BoucanClient({ url: 'ws://localhost:3001/ws', clientName: 'boucan-web/1.0' });
  *   await client.connect();
  *   await client.createRoom({ nickname: 'Zoé' });
  *   client.on('snapshot', (s) => render(s));

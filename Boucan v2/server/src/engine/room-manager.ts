@@ -1,4 +1,4 @@
-import type { MatchConfig } from '@boucan/shared';
+import { createRng, randomSeed, type MatchConfig, type Rng } from '@boucan/shared';
 import type { GameConfig } from '../config/game-config';
 import { fail } from './errors';
 import type { Logger } from './logger';
@@ -36,8 +36,11 @@ export class RoomManager {
   private readonly rooms = new Map<string, Room>();
   private readonly sessions = new Map<string, SessionEntry>();
   private readonly tokenByPlayer = new Map<string, string>();
+  private readonly rng: Rng;
 
-  constructor(private readonly options: EngineOptions) {}
+  constructor(private readonly options: EngineOptions) {
+    this.rng = createRng(options.config.seed ?? randomSeed());
+  }
 
   get roomCount(): number {
     return this.rooms.size;
@@ -124,6 +127,7 @@ export class RoomManager {
       logger: this.options.logger,
       output: this.options.output,
       rttOf: this.options.rttOf ?? (() => 0),
+      random: () => this.rng.next(),
       releaseSession: (playerId: string) => this.releaseToken(playerId),
     };
   }

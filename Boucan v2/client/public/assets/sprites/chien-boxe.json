@@ -1,0 +1,113 @@
+{
+ "frames": {
+  "bx_dep": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 394,
+    "h": 423
+   },
+   "anchor": {
+    "x": 0.4767,
+    "y": 0.9889
+   }
+  },
+  "bx_gm": {
+   "frame": {
+    "x": 394,
+    "y": 0,
+    "w": 394,
+    "h": 423
+   },
+   "anchor": {
+    "x": 0.4621,
+    "y": 0.9889
+   }
+  },
+  "bx_gp": {
+   "frame": {
+    "x": 788,
+    "y": 0,
+    "w": 394,
+    "h": 423
+   },
+   "anchor": {
+    "x": 0.4457,
+    "y": 0.9779
+   }
+  },
+  "bx_pp": {
+   "frame": {
+    "x": 1182,
+    "y": 0,
+    "w": 394,
+    "h": 423
+   },
+   "anchor": {
+    "x": 0.3689,
+    "y": 0.9719
+   }
+  },
+  "bx_pc": {
+   "frame": {
+    "x": 1576,
+    "y": 0,
+    "w": 394,
+    "h": 423
+   },
+   "anchor": {
+    "x": 0.3708,
+    "y": 0.9719
+   }
+  }
+ },
+ "meta": {
+  "note": "Chien en gants de boxe. Ancre = pieds.",
+  "anims": {
+   "box": {
+    "frames": [
+     {
+      "frame": "bx_gm",
+      "ms": 1000
+     }
+    ],
+    "loop": true
+   },
+   "box_punch": {
+    "frames": [
+     {
+      "frame": "bx_pp",
+      "ms": 60
+     },
+     {
+      "frame": "bx_pc",
+      "ms": 170
+     },
+     {
+      "frame": "bx_pp",
+      "ms": 70
+     }
+    ],
+    "next": "box"
+   },
+   "box_guard": {
+    "frames": [
+     {
+      "frame": "bx_gp",
+      "ms": 1000
+     }
+    ],
+    "loop": true
+   },
+   "box_win": {
+    "frames": [
+     {
+      "frame": "bx_dep",
+      "ms": 1000
+     }
+    ],
+    "loop": true
+   }
+  }
+ }
+}

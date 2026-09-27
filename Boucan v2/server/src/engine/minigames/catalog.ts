@@ -1,30 +1,35 @@
 import type { MiniGameModule } from './api';
-import type { BotStrategy } from './bot-api';
-import { courseCouloir } from './modules/course-couloir';
-import { courseCouloirBot } from './modules/course-couloir/bot';
-import { fausseCouleur } from './modules/fausse-couleur';
-import { fausseCouleurBot } from './modules/fausse-couleur/bot';
-import { interroSurprise } from './modules/interro-surprise';
-import { interroSurpriseBot } from './modules/interro-surprise/bot';
-import { sonnerie } from './modules/sonnerie';
-import { sonnerieBot } from './modules/sonnerie/bot';
+import { boules } from './modules/boules';
+import { boxe } from './modules/boxe';
+import { corde } from './modules/corde';
+import { course } from './modules/course';
+import { cristal } from './modules/cristal';
+import { degaine } from './modules/degaine';
+import { gardien } from './modules/gardien';
+import { glace } from './modules/glace';
+import { noir } from './modules/noir';
+import { patate } from './modules/patate';
+import { radeau } from './modules/radeau';
+import { roi } from './modules/roi';
+import { soleil } from './modules/soleil';
 
 /**
- * Every server-side minigame module. To add a minigame: create
- * modules/<id>/index.ts (+ optional bot.ts) and add ONE line below.
- * To remove one: delete its line (or disable it with BOUCAN_MINIGAMES).
+ * Server modules of the "duel" microgames (shared arena, server authority).
+ * Solo / boss microgames need no server code: see shared catalog + kits/local.ts.
+ * To add a duel: create modules/<id>.ts, add it below and to the shared catalog.
  */
-export const MINIGAME_MODULES: readonly MiniGameModule[] = [
-  sonnerie,
-  interroSurprise,
-  courseCouloir,
-  fausseCouleur,
+export const DUEL_MODULES: readonly MiniGameModule[] = [
+  degaine,
+  patate,
+  course,
+  cristal,
+  boules,
+  glace,
+  corde,
+  radeau,
+  boxe,
+  soleil,
+  roi,
+  gardien,
+  noir,
 ];
-
-/** Dev-only simulated players, by minigame id (fallback: genericBot). */
-export const MINIGAME_BOTS: Readonly<Record<string, BotStrategy>> = {
-  sonnerie: sonnerieBot,
-  'interro-surprise': interroSurpriseBot,
-  'course-couloir': courseCouloirBot,
-  'fausse-couleur': fausseCouleurBot,
-};

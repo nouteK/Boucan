@@ -1,13 +1,11 @@
 {
   "name": "@boucan/shared",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Contrat frontend ↔ backend de BOUCAN : schémas Zod (source de vérité), types, règles partagées, fixtures.",
+  "description": "Contrat client ↔ serveur de BOUCAN : schémas Zod, types, catalogue des micro-jeux, règles partagées.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./fixtures": "./fixtures/index.ts",
-    "./fixtures/*.json": "./fixtures/*.json"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

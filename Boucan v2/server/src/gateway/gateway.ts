@@ -2,8 +2,6 @@ import {
   CLIENT_MESSAGES,
   CLOSE_CODES,
   ClientEnvelope,
-  CONTRACT_REVISION,
-  GAME_RULES,
   isClientMessageType,
   makeError,
   PROTOCOL_VERSION,
@@ -97,24 +95,16 @@ export class Gateway {
     const { config } = this.options;
     return {
       protocolVersion: PROTOCOL_VERSION,
-      contractRevision: CONTRACT_REVISION,
       serverVersion: this.options.serverVersion,
       environment: this.options.environment,
       serverTime: this.clock(),
       connectionId,
-      limits: {
-        minPlayers: GAME_RULES.minPlayers,
-        maxPlayers: GAME_RULES.maxPlayers,
-        roundOptions: [...GAME_RULES.roundOptions],
-        defaultRounds: GAME_RULES.defaultRounds,
-        nicknameMinLength: GAME_RULES.nickname.minLength,
-        nicknameMaxLength: GAME_RULES.nickname.maxLength,
-        maxMessageBytes: config.network.maxMessageBytes,
-        characterIds: config.characters.allowed === null ? null : [...config.characters.allowed],
+      microgames: this.options.registry.ids(),
+      timings: {
+        stageIntroMs: config.timings.stageIntroMs,
+        interludeMs: config.timings.interludeMs,
+        verdictMs: config.timings.verdictMs,
       },
-      timings: config.timings,
-      reconnect: { lobbyGraceMs: config.reconnect.lobbyGraceMs, matchGraceMs: config.reconnect.matchGraceMs },
-      minigames: this.options.registry.definitions(config.minigames.durationScale),
     };
   }
 

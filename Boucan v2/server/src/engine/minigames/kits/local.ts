@@ -1,68 +1,54 @@
-import type { JsonValue, PlayerResult, ScoringSpec } from '@boucan/shared';
-import {
-  defineMiniGame,
-  reject,
-  type MiniGameContext,
-  type MiniGameModule,
-  type PrepareContext,
-  type Rejection,
-} from '../api';
+import type { MicrogameInfo } from '@boucan/shared';
+import { reject, type MiniGameModule, type RoundOutcome } from '../api';
 
 /**
- * Kit for LOCAL minigames: every client plays on its own from the public
- * seed/params and sends one `minigame.report` at the end. The server only
- * syncs the timing and checks that reports are plausible.
- *
- * Adding a local minigame = one call to defineLocalMiniGame (see modules/).
+ * Generic server side of every solo / boss microgame: clients play their own
+ * copy and report success or failure as soon as it is decided. Bots are
+ * simulated here: each decides at a random moment, succeeding with a
+ * probability that drops with speed and level.
  */
-export interface LocalMiniGameSpec<P extends JsonValue> {
-  id: string;
-  durationMs: number;
-  scoring: ScoringSpec;
-  minPlayers?: number;
-  maxPlayers?: number;
-  weight?: number;
-  prepare?(ctx: PrepareContext): P;
-  /**
-   * Plausibility check of a report (bounds, consistency with params).
-   * Return a Rejection to refuse it, or a (possibly corrected) result.
-   */
-  validateReport?(result: PlayerResult, ctx: MiniGameContext<P>): Rejection | PlayerResult | void;
-}
-
-export function defineLocalMiniGame<P extends JsonValue>(spec: LocalMiniGameSpec<P>): MiniGameModule {
-  return defineMiniGame<P, never>({
-    id: spec.id,
-    authority: 'local',
-    minPlayers: spec.minPlayers ?? 1,
-    maxPlayers: spec.maxPlayers ?? 8,
-    durationMs: spec.durationMs,
-    scoring: spec.scoring,
-    weight: spec.weight,
+export function localModule(info: MicrogameInfo): MiniGameModule {
+  return {
+    id: info.id,
     acceptsReports: true,
-    prepare: spec.prepare,
     start(ctx) {
-      const reports = new Map<string, PlayerResult>();
-      const allReported = () =>
-        ctx.participants.every((id) => reports.has(id) || !ctx.isConnected(id));
+      const outcomes = new Map<string, RoundOutcome>();
+      const botPlans = ctx.participants
+        .filter((id) => ctx.isBot(id))
+        .map((id) => {
+          const chance = botSuccessChance(ctx.skillOf(id), ctx.tempo, ctx.level, info.kind === 'boss');
+          return {
+            id,
+            at: ctx.activeAt + ctx.durationMs * ctx.rng.range(0.25, 0.95),
+            outcome: (ctx.rng.chance(chance) ? 'success' : 'failure') as RoundOutcome,
+          };
+        });
+
+      const settle = (id: string, outcome: RoundOutcome) => {
+        outcomes.set(id, outcome);
+        ctx.settle(id, outcome);
+      };
+
       return {
         onReport(playerId, result, now) {
-          // Reports make no sense before the game started (clock or client bug).
           if (now < ctx.activeAt) return reject('tooEarly');
-          if (result.timeMs !== undefined && result.timeMs > ctx.durationMs + 1_000) {
-            return reject('timeOutOfBounds');
-          }
-          const checked = spec.validateReport?.(result, ctx);
-          if (checked && 'reject' in checked) return checked;
-          const final = checked ?? result;
-          reports.set(playerId, final);
-          ctx.markFinished(playerId);
-          return final;
+          settle(playerId, result.outcome);
         },
-        isComplete: allReported,
-        isSettled: allReported,
-        results: () => Object.fromEntries(reports),
+        onTick(now) {
+          for (const plan of botPlans) {
+            if (!outcomes.has(plan.id) && now >= plan.at) settle(plan.id, plan.outcome);
+          }
+        },
+        results() {
+          return Object.fromEntries(outcomes);
+        },
       };
     },
-  });
+  };
+}
+
+/** Probability that a bot of `skill` wins a microgame. Tuned to feel human, not perfect. */
+export function botSuccessChance(skill: number, tempo: number, level: number, boss: boolean): number {
+  const p = skill - (tempo - 1) * 0.25 - (level - 1) * 0.06 - (boss ? 0.15 : 0);
+  return Math.min(0.95, Math.max(0.1, p));
 }

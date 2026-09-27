@@ -84,7 +84,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   CONFIG_INVALID: 'Invalid match configuration.',
   PLAYER_NOT_FOUND: 'No such player in this room.',
   SESSION_NOT_FOUND: 'Session token unknown or expired.',
-  STALE_SESSION: 'This minigame session is not the current one.',
+  STALE_SESSION: 'This round is not the current one.',
   NOT_PARTICIPANT: 'You are not a participant of this minigame.',
   INPUT_REJECTED: 'Input refused by the minigame.',
   REPORT_REJECTED: 'Result report refused.',

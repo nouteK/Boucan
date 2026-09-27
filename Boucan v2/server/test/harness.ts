@@ -1,42 +1,26 @@
 import {
-  createRng,
   PROTOCOL_VERSION,
   ServerMessage,
   type ClientMessageType,
   type ClientPayload,
   type JsonValue,
   type MatchPhase,
-  type PlayerResult,
   type RoomEvent,
   type RoomSnapshot,
   type TypedPayload,
 } from '@boucan/shared';
 import { resolveGameConfig, type GameConfigOverrides } from '../src/config/game-config';
 import type { MiniGameModule } from '../src/engine/minigames/api';
-import { genericBot, type BotApi } from '../src/engine/minigames/bot-api';
-import { MINIGAME_BOTS, MINIGAME_MODULES } from '../src/engine/minigames/catalog';
+import { DUEL_MODULES } from '../src/engine/minigames/catalog';
 import { MiniGameRegistry } from '../src/engine/minigames/registry';
 import { silentLogger } from '../src/engine/logger';
 import { Gateway, type ConnectionHandle } from '../src/gateway/gateway';
 
 /**
  * Synchronous test harness: a Gateway fed by in-memory connections and a
- * fake clock. Every server message is validated against the contract
- * (ServerMessage schema) — a malformed message fails the test immediately.
+ * fake clock. Every server message is validated against the contract — a
+ * malformed message fails the test.
  */
-
-/** Short, deterministic timings so full matches run in a few thousand fake ms. */
-export const FAST_TIMINGS = {
-  matchStartingMs: 100,
-  preparingMinMs: 100,
-  preparingMaxMs: 1_000,
-  countdownMs: 300,
-  endingMinMs: 50,
-  reportGraceMs: 300,
-  resultsMs: 200,
-  intermissionMs: 100,
-  matchResultsMs: null,
-} as const;
 
 export interface HarnessOptions {
   config?: GameConfigOverrides;
@@ -52,38 +36,35 @@ export class Harness {
   now = 1_700_000_000_000;
   readonly gateway: Gateway;
   readonly tickMs: number;
+  readonly config;
   private seq = 0;
   private scheduled: Scheduled[] = [];
   readonly clients: TestClient[] = [];
-  /** Contract violations detected in server messages. */
   readonly violations: string[] = [];
-
-  assertContract(): void {
-    if (this.violations.length > 0) throw new Error(this.violations.join('\n'));
-  }
+  private readonly rtt: number;
 
   constructor(options: HarnessOptions = {}) {
-    const config = resolveGameConfig({
+    this.config = resolveGameConfig({
       seed: 42,
       ...options.config,
-      timings: { ...FAST_TIMINGS, ...options.config?.timings },
-      minigames: { enabled: options.enabled ?? null, ...options.config?.minigames },
+      microgames: { enabled: options.enabled ?? null, ...options.config?.microgames },
     });
-    this.tickMs = config.network.tickMs;
+    this.tickMs = this.config.network.tickMs;
+    this.rtt = options.rtt ?? 0;
     this.gateway = new Gateway({
-      config,
-      registry: new MiniGameRegistry(options.modules ?? MINIGAME_MODULES, config.minigames.enabled),
+      config: this.config,
+      registry: new MiniGameRegistry(options.modules ?? DUEL_MODULES, this.config.microgames.enabled),
       logger: silentLogger,
       serverVersion: 'test',
       environment: 'test',
       clock: () => this.now,
     });
-    this.rtt = options.rtt ?? 0;
   }
 
-  private readonly rtt: number;
+  assertContract(): void {
+    if (this.violations.length > 0) throw new Error(this.violations.join('\n'));
+  }
 
-  /** Opens a connection and performs the handshake. */
   client(options: { handshake?: boolean } = {}): TestClient {
     const client = new TestClient(this, `c${++this.seq}`, this.rtt);
     this.clients.push(client);
@@ -91,7 +72,6 @@ export class Harness {
     return client;
   }
 
-  /** Advances the fake clock tick by tick, running scheduled bot actions. */
   advance(ms: number): void {
     const end = this.now + ms;
     while (this.now < end) {
@@ -103,8 +83,7 @@ export class Harness {
     }
   }
 
-  /** Advances until `predicate` is true (fails after `maxMs`). */
-  advanceUntil(predicate: () => boolean, maxMs = 120_000): void {
+  advanceUntil(predicate: () => boolean, maxMs = 600_000): void {
     const limit = this.now + maxMs;
     while (!predicate()) {
       if (this.now >= limit) throw new Error(`advanceUntil: condition not met after ${maxMs} ms`);
@@ -131,9 +110,10 @@ export class Harness {
   }
 }
 
+export type AutoplayMode = 'win' | 'lose' | 'random' | 'idle';
+
 export class TestClient {
   readonly received: ServerMessage[] = [];
-  /** Fake-clock time at which each entry of `received` arrived. */
   readonly receivedAt: number[] = [];
   playerId: string | null = null;
   sessionToken: string | null = null;
@@ -141,9 +121,8 @@ export class TestClient {
   closeCode: number | null = null;
   private readonly handle: ConnectionHandle;
   private rid = 0;
-  private bot: { skill: number; sessionId: string | null } | null = null;
-  private eventListeners: ((e: TypedPayload) => void)[] = [];
-  private stateListeners: ((s: JsonValue) => void)[] = [];
+  private mode: AutoplayMode | null = null;
+  private playedRound: string | null = null;
 
   constructor(
     private readonly harness: Harness,
@@ -161,9 +140,6 @@ export class TestClient {
     });
   }
 
-  // ─── Sending ───────────────────────────────────────────────────────────────
-
-  /** Sends with a rid and returns the reply (the gateway is synchronous). */
   request<T extends ClientMessageType>(type: T, payload?: ClientPayload<T>) {
     const rid = `r${++this.rid}`;
     this.raw(JSON.stringify({ type, rid, payload }));
@@ -178,14 +154,12 @@ export class TestClient {
     return reply;
   }
 
-  /** Like request() but throws on refusal and returns the payload. */
   ok<T extends ClientMessageType>(type: T, payload?: ClientPayload<T>): unknown {
     const reply = this.request(type, payload);
     if (!reply.ok) throw new Error(`${type} refused: ${reply.error.code} ${JSON.stringify(reply.error.details ?? {})}`);
     return reply.payload;
   }
 
-  /** Fire-and-forget (no rid). */
   send<T extends ClientMessageType>(type: T, payload?: ClientPayload<T>): void {
     this.raw(JSON.stringify({ type, payload }));
   }
@@ -201,8 +175,6 @@ export class TestClient {
     this.handle.closed();
   }
 
-  // ─── Reading ───────────────────────────────────────────────────────────────
-
   get snapshot(): RoomSnapshot {
     for (let i = this.received.length - 1; i >= 0; i--) {
       const m = this.received[i]!;
@@ -214,6 +186,10 @@ export class TestClient {
 
   get phase(): MatchPhase {
     return this.snapshot.match.phase;
+  }
+
+  me() {
+    return this.snapshot.lobby.players.find((p) => p.id === this.playerId)!;
   }
 
   events(): RoomEvent[] {
@@ -232,59 +208,60 @@ export class TestClient {
     return this.events().flatMap((e) => (e.kind === 'phaseChanged' ? [e.phase] : []));
   }
 
-  // ─── Bot behaviour (plays minigames through the protocol) ──────────────────
-
-  /** Makes this client play automatically: ready + minigame bots. */
-  autoplay(skill = 0.7): this {
-    this.bot = { skill, sessionId: null };
+  /**
+   * Plays every microgame automatically through the protocol:
+   * solo/boss → a report; duels → sensible inputs. `mode` forces the outcome of solo games.
+   */
+  autoplay(mode: AutoplayMode = 'random'): this {
+    this.mode = mode;
     return this;
   }
 
   private onMessage(data: string): void {
     const parsed = ServerMessage.safeParse(JSON.parse(data));
     if (!parsed.success) {
-      // Thrown later by request()/advance(): the gateway swallows errors thrown inside send().
-      this.harness.violations.push(`${this.id} received a message violating the contract: ${parsed.error.message}
-${data}`);
+      this.harness.violations.push(`${this.id} received a message violating the contract: ${parsed.error.message}\n${data}`);
       return;
     }
     const message = parsed.data;
     this.received.push(message);
     this.receivedAt.push(this.harness.now);
-    if (message.type === 'minigame.event') this.eventListeners.forEach((l) => l(message.payload.event));
-    if (message.type === 'minigame.state') this.stateListeners.forEach((l) => l(message.payload.state));
-    if (message.type === 'room.snapshot' && this.bot) this.botReact(message.payload);
+    if (this.mode && this.mode !== 'idle') this.react(message);
   }
 
-  private botReact(snapshot: RoomSnapshot): void {
-    const session = snapshot.match.minigame;
+  private react(message: ServerMessage): void {
     const me = this.playerId;
-    if (!session || !me || !session.participants.includes(me)) return;
-    const phase = snapshot.match.phase;
-    if (phase === 'MINIGAME_PREPARING' && !session.readyPlayerIds.includes(me)) {
-      this.harness.schedule(this, 20, () => this.send('minigame.ready', { sessionId: session.sessionId }));
+    if (!me) return;
+    if (message.type === 'room.snapshot') {
+      const { round } = message.payload.match;
+      if (message.payload.match.phase !== 'MICROGAME' || !round || this.playedRound === round.roundId) return;
+      if (!round.participants.includes(me)) return;
+      this.playedRound = round.roundId;
+      const roundId = round.roundId;
+      const d = round.timing.durationMs;
+      if (round.kind !== 'duel') {
+        const outcome = this.mode === 'win' ? 'success' : this.mode === 'lose' ? 'failure' : hash(roundId + me) % 3 === 0 ? 'failure' : 'success';
+        this.harness.schedule(this, Math.round(d * 0.5), () => this.send('minigame.report', { roundId, result: { outcome } }));
+      } else if (round.microgameId === 'course') {
+        for (let t = 60; t < d; t += 90) this.harness.schedule(this, t, () => this.send('minigame.input', { roundId, input: { type: 'tap' } }));
+      }
+      return;
     }
-    if (phase === 'MINIGAME_ACTIVE' && this.bot!.sessionId !== session.sessionId) {
-      this.bot!.sessionId = session.sessionId;
-      this.eventListeners = [];
-      this.stateListeners = [];
-      const strategy = MINIGAME_BOTS[session.minigameId] ?? genericBot;
-      const api: BotApi = {
-        playerId: me,
-        session,
-        rng: createRng(session.seed ^ hash(me)),
-        skill: this.bot!.skill,
-        now: () => this.harness.now,
-        input: (input) => this.send('minigame.input', { sessionId: session.sessionId, input }),
-        report: (result: PlayerResult) => this.send('minigame.report', { sessionId: session.sessionId, result }),
-        onEvent: (l) => this.eventListeners.push(l),
-        onState: (l) => this.stateListeners.push(l),
-        after: (ms, fn) =>
-          this.harness.schedule(this, ms, () => {
-            if (this.bot?.sessionId === session.sessionId && this.snapshot.match.minigame?.sessionId === session.sessionId) fn();
-          }),
-      };
-      strategy.play(api);
+    if (message.type === 'minigame.event') {
+      const round = this.snapshot.match.round;
+      if (!round || round.roundId !== message.payload.roundId) return;
+      const ev = message.payload.event as TypedPayload & { to?: string };
+      const roundId = round.roundId;
+      if (ev.type === 'signal') this.harness.schedule(this, 250, () => this.send('minigame.input', { roundId, input: { type: 'press' } }));
+      if (ev.type === 'pass' && ev.to === me) this.harness.schedule(this, 420, () => this.send('minigame.input', { roundId, input: { type: 'pass' } }));
+    }
+    if (message.type === 'minigame.state') {
+      const state = message.payload.state as { holder?: string | null } & JsonValue;
+      // Patate: the first holder has no "pass" event.
+      if (state && typeof state === 'object' && 'holder' in state && state.holder === me && message.payload.seq === 1) {
+        const roundId = message.payload.roundId;
+        this.harness.schedule(this, 300, () => this.send('minigame.input', { roundId, input: { type: 'pass' } }));
+      }
     }
   }
 }
@@ -293,23 +270,28 @@ function isJoined(payload: unknown): payload is { snapshot: RoomSnapshot } {
   return typeof payload === 'object' && payload !== null && 'snapshot' in payload && 'sessionToken' in payload;
 }
 
-function hash(s: string): number {
+export function hash(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return h >>> 0;
 }
 
-/** Creates a room with `count` players (first = host), all ready. */
-export function setupRoom(harness: Harness, count: number, options: { ready?: boolean; rounds?: number } = {}) {
+/** Room with `humans` connected clients (first = host, all ready) and `bots` server bots. */
+export function setupRoom(
+  harness: Harness,
+  humans: number,
+  options: { bots?: number; ready?: boolean; config?: Record<string, unknown> } = {},
+) {
   const host = harness.client();
-  host.ok('room.create', { nickname: 'Hôte', ...(options.rounds && { config: { rounds: options.rounds } }) });
+  host.ok('room.create', { nickname: 'Hôte', ...(options.config && { config: options.config as never }) });
   const code = host.snapshot.lobby.code;
   const players = [host];
-  for (let i = 1; i < count; i++) {
+  for (let i = 1; i < humans; i++) {
     const c = harness.client();
     c.ok('room.join', { code, nickname: `Joueur ${i}` });
     players.push(c);
   }
+  for (let i = 0; i < (options.bots ?? 0); i++) host.ok('room.addBot');
   if (options.ready !== false) for (const p of players) p.ok('player.ready', { ready: true });
   return { host, players, code };
 }

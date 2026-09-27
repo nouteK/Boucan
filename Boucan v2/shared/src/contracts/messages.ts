@@ -8,10 +8,11 @@ import {
   PlayerId,
   RequestId,
   RoomCode,
-  SessionId,
   Timestamp,
   TypedPayload,
 } from './primitives';
+
+const RoundId = z.string().min(1).max(64);
 
 /*
  * Wire format: one JSON object per WebSocket text frame.
@@ -23,7 +24,7 @@ import {
  *
  * A client message with a `rid` always gets exactly one `reply`. Without a
  * `rid`, successes are silent and failures come back as an `error` message.
- * Human documentation: docs/architecture/NETWORK_PROTOCOL.md.
+ * Human documentation: docs/PROTOCOL.md.
  */
 
 // ─── Envelopes ───────────────────────────────────────────────────────────────
@@ -41,7 +42,7 @@ const Nickname = z.string().max(200); // real rules: rules/nickname.ts (server-s
 
 export const HelloPayload = z.object({
   protocolVersion: z.number().int(),
-  /** Free-form client description for server logs, e.g. "astra-web/0.3.1". */
+  /** Free-form client description for server logs, e.g. "web/1.0". */
   client: z.string().max(64).optional(),
 });
 
@@ -74,20 +75,19 @@ export const UpdatePlayerPayload = z
 export const ReadyPayload = z.object({ ready: z.boolean() });
 export const KickPayload = z.object({ playerId: PlayerId });
 export const ConfigureMatchPayload = MatchConfig.partial().refine(
-  (p) => p.rounds !== undefined || p.minigamePool !== undefined,
+  (p) => Object.keys(p).length > 0,
   'nothing to configure',
 );
-export const MiniGameReadyPayload = z.object({ sessionId: SessionId });
 export const MiniGameInputPayload = z.object({
-  sessionId: SessionId,
-  /** Module-specific input, validated by the minigame module (see MINIGAME_BACKEND.md). */
+  roundId: RoundId,
+  /** Duel-specific input, validated by the server module. */
   input: JsonValue,
   /** Client estimate of the server time when the input happened (clock-synced). Optional. */
   at: Timestamp.optional(),
   /** Optional client sequence number, echoed in relayed events. */
   seq: z.number().int().nonnegative().optional(),
 });
-export const MiniGameReportPayload = z.object({ sessionId: SessionId, result: PlayerResult });
+export const MiniGameReportPayload = z.object({ roundId: RoundId, result: PlayerResult });
 
 const Empty = z.object({}).optional();
 const Nothing = z.object({});
@@ -128,21 +128,18 @@ export const CLIENT_MESSAGES = {
   'room.resume': spec(ResumePayload, JoinedReply, { requiresRoom: false }),
   'room.leave': spec(Empty, Nothing),
   'room.kick': spec(KickPayload, Nothing, { phases: ['LOBBY'], hostOnly: true }),
+  /** Adds a server-run bot (host, lobby). Remove it with room.kick. */
+  'room.addBot': spec(Empty, Nothing, { phases: ['LOBBY'], hostOnly: true }),
   'player.update': spec(UpdatePlayerPayload, Nothing, { phases: ['LOBBY'] }),
   'player.ready': spec(ReadyPayload, Nothing, { phases: ['LOBBY'] }),
   'match.configure': spec(ConfigureMatchPayload, Nothing, { phases: ['LOBBY'], hostOnly: true }),
   'match.start': spec(Empty, Nothing, { phases: ['LOBBY'], hostOnly: true }),
   'match.abort': spec(Empty, Nothing, { hostOnly: true }),
-  'match.returnToLobby': spec(Empty, Nothing, { phases: ['MATCH_RESULTS'], hostOnly: true }),
-  'minigame.ready': spec(MiniGameReadyPayload, Nothing, {
-    phases: ['MINIGAME_PREPARING', 'MINIGAME_COUNTDOWN', 'MINIGAME_ACTIVE'],
-  }),
-  'minigame.input': spec(MiniGameInputPayload, Nothing, {
-    phases: ['MINIGAME_ACTIVE', 'MINIGAME_ENDING'],
-  }),
-  'minigame.report': spec(MiniGameReportPayload, Nothing, {
-    phases: ['MINIGAME_ACTIVE', 'MINIGAME_ENDING'],
-  }),
+  'match.returnToLobby': spec(Empty, Nothing, { phases: ['STAGE_RESULTS'], hostOnly: true }),
+  /** Duel input (server-simulated microgames). */
+  'minigame.input': spec(MiniGameInputPayload, Nothing, { phases: ['MICROGAME'] }),
+  /** Outcome of a solo / boss microgame, sent as soon as it is decided. */
+  'minigame.report': spec(MiniGameReportPayload, Nothing, { phases: ['MICROGAME'] }),
 } as const;
 
 export type ClientMessageType = keyof typeof CLIENT_MESSAGES;
@@ -177,14 +174,14 @@ export const RoomEvent = z.discriminatedUnion('kind', [
     kind: z.literal('phaseChanged'),
     phase: z.string(),
     previousPhase: z.string(),
-    round: z.number().int(),
+    counter: z.number().int(),
   }),
   z.object({ kind: z.literal('matchAborted'), reason: z.enum(['host', 'noPlayers']) }),
 ]);
 export type RoomEvent = z.infer<typeof RoomEvent>;
 
 export const MiniGameStateMessage = z.object({
-  sessionId: SessionId,
+  roundId: RoundId,
   /** Increases by one per state message of the session. */
   seq: z.number().int().min(1),
   serverTime: Timestamp,
@@ -194,7 +191,7 @@ export const MiniGameStateMessage = z.object({
 export type MiniGameStateMessage = z.infer<typeof MiniGameStateMessage>;
 
 export const MiniGameEventMessage = z.object({
-  sessionId: SessionId,
+  roundId: RoundId,
   serverTime: Timestamp,
   /** Semantic event, e.g. { type: "bellRang", kind: "real" }. Never a sound file or animation name. */
   event: TypedPayload,

@@ -1,0 +1,92 @@
+{
+ "frames": {
+  "b0": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9753
+   }
+  },
+  "b1": {
+   "frame": {
+    "x": 256,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9753
+   }
+  },
+  "b2": {
+   "frame": {
+    "x": 0,
+    "y": 256,
+    "w": 256,
+    "h": 256
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9753
+   }
+  },
+  "boom": {
+   "frame": {
+    "x": 256,
+    "y": 256,
+    "w": 256,
+    "h": 256
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.5
+   }
+  }
+ },
+ "meta": {
+  "image": "bombe_sheet.png",
+  "size": {
+   "w": 512,
+   "h": 512
+  },
+  "anims": {
+   "idle": {
+    "loop": true,
+    "frames": [
+     {
+      "frame": "b0",
+      "ms": 1000
+     }
+    ]
+   },
+   "chauffe": {
+    "loop": false,
+    "frames": [
+     {
+      "frame": "b0",
+      "ms": 400
+     },
+     {
+      "frame": "b1",
+      "ms": 400
+     },
+     {
+      "frame": "b2",
+      "ms": 400
+     },
+     {
+      "frame": "boom",
+      "ms": 500
+     }
+    ]
+   }
+  },
+  "note": "b0 → b1 → b2 = la bombe rougit ; boom = explosion (ancre au centre)."
+ }
+}

@@ -1,0 +1,269 @@
+{
+ "frames": {
+  "run_0": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 256
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9838
+   }
+  },
+  "run_1": {
+   "frame": {
+    "x": 256,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 256
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9838
+   }
+  },
+  "run_2": {
+   "frame": {
+    "x": 512,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 256
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9838
+   }
+  },
+  "run_3": {
+   "frame": {
+    "x": 768,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 256
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9838
+   }
+  },
+  "run_4": {
+   "frame": {
+    "x": 0,
+    "y": 256,
+    "w": 256,
+    "h": 256
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 256
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9838
+   }
+  },
+  "run_5": {
+   "frame": {
+    "x": 256,
+    "y": 256,
+    "w": 256,
+    "h": 256
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 256
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9838
+   }
+  },
+  "run_6": {
+   "frame": {
+    "x": 512,
+    "y": 256,
+    "w": 256,
+    "h": 256
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 256
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9838
+   }
+  },
+  "run_7": {
+   "frame": {
+    "x": 768,
+    "y": 256,
+    "w": 256,
+    "h": 256
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 256,
+    "h": 256
+   },
+   "sourceSize": {
+    "w": 256,
+    "h": 256
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9838
+   }
+  }
+ },
+ "animations": {
+  "run": [
+   "run_0",
+   "run_1",
+   "run_2",
+   "run_3",
+   "run_4",
+   "run_5",
+   "run_6",
+   "run_7"
+  ],
+  "stand": [
+   "run_4"
+  ]
+ },
+ "meta": {
+  "image": "renard_sheet@1x.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1024,
+   "h": 512
+  },
+  "scale": "1",
+  "anims": {
+   "run": {
+    "loop": true,
+    "frames": [
+     {
+      "frame": "run_0",
+      "ms": 75
+     },
+     {
+      "frame": "run_1",
+      "ms": 75
+     },
+     {
+      "frame": "run_2",
+      "ms": 75
+     },
+     {
+      "frame": "run_3",
+      "ms": 75
+     },
+     {
+      "frame": "run_4",
+      "ms": 75
+     },
+     {
+      "frame": "run_5",
+      "ms": 75
+     },
+     {
+      "frame": "run_6",
+      "ms": 75
+     },
+     {
+      "frame": "run_7",
+      "ms": 75
+     }
+    ]
+   },
+   "stand": {
+    "loop": true,
+    "frames": [
+     {
+      "frame": "run_4",
+      "ms": 1000
+     }
+    ]
+   }
+  },
+  "note": "Ancre = milieu des pieds. Regarde vers la droite : flipX pour la gauche. 'stand' est provisoire (pas de pose idle fournie)."
+ }
+}

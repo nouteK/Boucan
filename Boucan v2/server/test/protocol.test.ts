@@ -11,8 +11,8 @@ describe('handshake', () => {
     const c = harness.client({ handshake: false });
     const info = ServerInfo.parse(c.ok('hello', { protocolVersion: PROTOCOL_VERSION, client: 'test/1' }));
     expect(info.protocolVersion).toBe(PROTOCOL_VERSION);
-    expect(info.minigames.map((m) => m.id)).toContain('sonnerie');
-    expect(info.limits.maxPlayers).toBe(8);
+    expect(info.microgames).toContain('cours');
+    expect(info.microgames).toContain('patate');
     expect(info.serverTime).toBe(harness.now);
   });
 

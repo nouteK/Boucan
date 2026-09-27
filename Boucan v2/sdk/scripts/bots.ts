@@ -6,10 +6,11 @@
  *
  *   Create a room hosted by a bot, then join it from your UI with the printed code;
  *   the bot host starts when everyone is ready and returns to the lobby after the podium:
- *     npm run bots -- --create --count 3 [--rounds 5] [--start-at 4]
+ *     npm run bots -- --create --count 3 [--length court|normal|long] [--start-at 4]
  *
  * Options: --url ws://localhost:3001/ws  --skill 0.6
  */
+import { GAME_RULES, type MatchLength } from '@boucan/shared';
 import { BOT_NAMES, BotPlayer } from '../src/local';
 
 const args = new Map<string, string>();
@@ -17,7 +18,8 @@ process.argv.slice(2).forEach((arg, i, all) => {
   if (arg.startsWith('--')) args.set(arg.slice(2), all[i + 1] && !all[i + 1]!.startsWith('--') ? all[i + 1]! : 'true');
 });
 const url = args.get('url') ?? process.env.BOUCAN_URL ?? 'ws://localhost:3001/ws';
-const count = Math.max(1, Math.min(7, Number(args.get('count') ?? 3)));
+// With --create the bots fill the room (host included); otherwise they join yours.
+const count = Math.max(1, Math.min(GAME_RULES.maxPlayers - (args.has('create') ? 0 : 1), Number(args.get('count') ?? 3)));
 const skill = Number(args.get('skill') ?? 0.6);
 const bots: BotPlayer[] = [];
 
@@ -35,7 +37,7 @@ try {
       autoStartAt: Number(args.get('start-at') ?? count + 1),
       autoReturnAfterMs: 15_000,
     });
-    code = await host.create({ rounds: Number(args.get('rounds') ?? 5) });
+    code = await host.create({ length: (args.get('length') ?? 'court') as MatchLength });
     bots.push(host);
     log(`room created: ${code} (bot host starts when ${args.get('start-at') ?? count + 1} players are ready)`);
   }
@@ -54,7 +56,7 @@ try {
     bot.client.on('sessionEnded', (reason) => log(`${bot.client.playerId} session ended: ${reason}`));
   }
   bots[0]!.client.on('roomEvent', (e) => {
-    if (e.kind === 'phaseChanged') log(`phase ${e.phase} (round ${e.round})`);
+    if (e.kind === 'phaseChanged') log(`phase ${e.phase} (microgame ${e.counter})`);
   });
 } catch (error) {
   console.error(`[bots] ${error instanceof Error ? error.message : error}`);

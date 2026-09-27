@@ -1,0 +1,30 @@
+{
+ "frames": {
+  "bx_hit": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 394,
+    "h": 423
+   },
+   "anchor": {
+    "x": 0.4776,
+    "y": 0.9872
+   }
+  }
+ },
+ "meta": {
+  "note": "Chien sonné (boxe). Ancre = pieds.",
+  "anims": {
+   "box_hurt": {
+    "frames": [
+     {
+      "frame": "bx_hit",
+      "ms": 1000
+     }
+    ],
+    "loop": true
+   }
+  }
+ }
+}

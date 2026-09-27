@@ -1,6 +1,6 @@
 import {
+  DUEL_MODULES,
   Gateway,
-  MINIGAME_MODULES,
   MiniGameRegistry,
   resolveGameConfig,
   SERVER_VERSION,
@@ -15,7 +15,7 @@ import type { TransportFactory, TransportHandlers } from '../transport';
 export interface LocalServerOptions {
   /** Game config overrides (timings, scoring…). */
   config?: GameConfigOverrides;
-  /** Multiplies phase and minigame durations (0.5 = twice as fast). */
+  /** Multiplies every duration (0.5 = twice as fast). */
   timeScale?: number;
   /** Simulated one-way network latency (ms). Default 0. */
   latencyMs?: number;
@@ -42,7 +42,7 @@ export function createLocalServer(options: LocalServerOptions = {}): LocalServer
   const config = resolveGameConfig(options.config, options.timeScale ?? 1);
   const gateway = new Gateway({
     config,
-    registry: new MiniGameRegistry(options.modules ?? MINIGAME_MODULES, config.minigames.enabled),
+    registry: new MiniGameRegistry(options.modules ?? DUEL_MODULES, config.microgames.enabled),
     logger: options.logger ?? silentLogger,
     serverVersion: `${SERVER_VERSION}-local`,
     environment: 'development',

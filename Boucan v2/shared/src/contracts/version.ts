@@ -11,7 +11,7 @@
  * always PROTOCOL_VERSION. Clients must ignore unknown fields, events and
  * message types so additive changes never break them.
  *
- * Every change is logged in docs/handoff/CLAUDE_TO_ASTRA.md and CHANGELOG.md.
+ * Every change is logged in CHANGELOG.md.
  */
-export const PROTOCOL_VERSION = 1;
-export const CONTRACT_REVISION = '1.0.0';
+export const PROTOCOL_VERSION = 2;
+export const CONTRACT_REVISION = '2.1.0';

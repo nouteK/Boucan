@@ -1,6 +1,5 @@
 import {
   CLOSE_CODES,
-  CONTRACT_REVISION,
   PROTOCOL_VERSION,
   ServerMessage,
   type ClientMessageType,
@@ -35,7 +34,7 @@ export interface BoucanClientOptions {
   url?: string;
   /** Custom transport (in-memory local server, tests). */
   transport?: TransportFactory;
-  /** Sent in `hello` for server logs, e.g. "astra-web/0.1.0". */
+  /** Sent in `hello` for server logs, e.g. "boucan-web/1.0.0". */
   clientName?: string;
   /** Default 8000 ms. */
   requestTimeoutMs?: number;
@@ -78,7 +77,7 @@ const NO_RECONNECT = new Set<number>([
 /**
  * Reference client for the BOUCAN protocol — the single place where a
  * frontend talks to the backend. Framework-agnostic, zero UI.
- * Usage guide: docs/integration/FRONTEND_BACKEND.md.
+ * Protocol guide: docs/PROTOCOL.md.
  */
 export class BoucanClient extends Emitter<BoucanClientEvents> {
   readonly clock = new ServerClock();
@@ -155,9 +154,6 @@ export class BoucanClient extends Emitter<BoucanClientEvents> {
     this.transport = transport;
     const info = await this.request('hello', { protocolVersion: PROTOCOL_VERSION, client: this.options.clientName });
     this._serverInfo = info;
-    if (info.contractRevision !== CONTRACT_REVISION) {
-      this.emit('warning', `Contract revision differs: SDK ${CONTRACT_REVISION}, server ${info.contractRevision} (compatible, but check docs/handoff/CLAUDE_TO_ASTRA.md).`);
-    }
     await this.syncClock(5);
     this.syncTimer ??= setInterval(() => void this.syncClock(1).catch(() => {}), 30_000);
     this.setStatus('connected');
@@ -213,6 +209,11 @@ export class BoucanClient extends Emitter<BoucanClientEvents> {
     return this.request('player.update', update).then(() => undefined);
   }
 
+  /** Adds a server-run bot to the room (host, lobby). */
+  addBot(): Promise<void> {
+    return this.request('room.addBot', {}).then(() => undefined);
+  }
+
   kick(playerId: string): Promise<void> {
     return this.request('room.kick', { playerId }).then(() => undefined);
   }
@@ -235,18 +236,13 @@ export class BoucanClient extends Emitter<BoucanClientEvents> {
 
   // ─── Minigames ─────────────────────────────────────────────────────────────
 
-  /** "My assets are loaded" for the current (or given) minigame session. */
-  minigameReady(sessionId = this.currentSessionId()): Promise<void> {
-    return this.request('minigame.ready', { sessionId }).then(() => undefined);
-  }
-
   /**
    * Sends a gameplay input, fire-and-forget (no reply: refusals arrive as
    * `error` events). `at` defaults to the synced server time of the call.
    */
-  sendInput(input: JsonValue, options: { at?: number; sessionId?: string } = {}): void {
+  sendInput(input: JsonValue, options: { at?: number; roundId?: string } = {}): void {
     this.post('minigame.input', {
-      sessionId: options.sessionId ?? this.currentSessionId(),
+      roundId: options.roundId ?? this.currentRoundId(),
       input,
       at: Math.round(options.at ?? this.serverNow()),
       seq: ++this.inputSeq,
@@ -254,18 +250,18 @@ export class BoucanClient extends Emitter<BoucanClientEvents> {
   }
 
   /** Same as sendInput but awaits the server's verdict (useful for debugging). */
-  sendInputChecked(input: JsonValue, options: { at?: number; sessionId?: string } = {}): Promise<void> {
+  sendInputChecked(input: JsonValue, options: { at?: number; roundId?: string } = {}): Promise<void> {
     return this.request('minigame.input', {
-      sessionId: options.sessionId ?? this.currentSessionId(),
+      roundId: options.roundId ?? this.currentRoundId(),
       input,
       at: Math.round(options.at ?? this.serverNow()),
       seq: ++this.inputSeq,
     }).then(() => undefined);
   }
 
-  /** Final result of a `local` minigame (once per session). */
-  reportResult(result: PlayerResult, sessionId = this.currentSessionId()): Promise<void> {
-    return this.request('minigame.report', { sessionId, result }).then(() => undefined);
+  /** Outcome of a solo / boss microgame (once per round, as soon as it is decided). */
+  reportResult(result: PlayerResult, roundId = this.currentRoundId()): Promise<void> {
+    return this.request('minigame.report', { roundId, result }).then(() => undefined);
   }
 
   // ─── Low level ─────────────────────────────────────────────────────────────
@@ -292,9 +288,9 @@ export class BoucanClient extends Emitter<BoucanClientEvents> {
 
   // ─── Internals ─────────────────────────────────────────────────────────────
 
-  private currentSessionId(): string {
-    const id = this._snapshot?.match.minigame?.sessionId;
-    if (!id) throw new BoucanError('INVALID_PHASE', 'request', 'No minigame session in progress');
+  private currentRoundId(): string {
+    const id = this._snapshot?.match.round?.roundId;
+    if (!id) throw new BoucanError('INVALID_PHASE', 'request', 'No microgame in progress');
     return id;
   }
 

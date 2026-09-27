@@ -1,8 +1,8 @@
 {
   "name": "@boucan/server",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "Serveur de jeu BOUCAN : rooms, lifecycle des matchs, micro-jeux, scores, protocole WebSocket.",
+  "description": "Serveur BOUCAN : rooms, match façon WarioWare (interludes, accélérations, boss, vies), duels, bots, protocole WebSocket.",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -12,9 +12,7 @@
     "dev": "tsx watch --env-file-if-exists=../.env src/main.ts",
     "start": "node --env-file-if-exists=../.env dist/main.js",
     "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node22 --external:ws --external:zod --sourcemap --outfile=dist/main.js",
-    "typecheck": "tsc -p tsconfig.json",
-    "generate": "tsx scripts/generate-contract.ts",
-    "generate:check": "tsx scripts/generate-contract.ts --check"
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@boucan/shared": "*",

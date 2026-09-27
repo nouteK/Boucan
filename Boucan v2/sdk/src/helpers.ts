@@ -17,9 +17,9 @@ export function isHost(snapshot: RoomSnapshot, playerId: string | null): boolean
   return playerId !== null && snapshot.lobby.hostId === playerId;
 }
 
-/** Does `playerId` play the current minigame? (false for players who joined the room too late / left) */
+/** Does `playerId` take part in the current microgame? */
 export function isParticipant(snapshot: RoomSnapshot, playerId: string | null): boolean {
-  return playerId !== null && (snapshot.match.minigame?.participants.includes(playerId) ?? false);
+  return playerId !== null && (snapshot.match.round?.participants.includes(playerId) ?? false);
 }
 
 export interface PhaseProgress {
@@ -38,12 +38,14 @@ export interface PhaseProgress {
  * Call it every animation frame: no network traffic needed for timers.
  */
 export function phaseProgress(snapshot: RoomSnapshot, serverNow: number): PhaseProgress {
-  const { phaseStartedAt, phaseEndsAt, phaseEndsExactly } = snapshot.match;
+  const { phaseStartedAt, phaseEndsAt, phase } = snapshot.match;
   const elapsedMs = Math.max(0, serverNow - phaseStartedAt);
   if (phaseEndsAt === null) return { elapsedMs, remainingMs: null, ratio: null, exact: false };
   const total = Math.max(1, phaseEndsAt - phaseStartedAt);
   const remainingMs = Math.max(0, phaseEndsAt - serverNow);
-  return { elapsedMs, remainingMs, ratio: Math.min(1, elapsedMs / total), exact: phaseEndsExactly };
+  // Duels may end early (everyone done); every other phase ends exactly on time.
+  const exact = phase !== 'MICROGAME' || snapshot.match.round?.kind !== 'duel';
+  return { elapsedMs, remainingMs, ratio: Math.min(1, elapsedMs / total), exact };
 }
 
 /** ms from `serverNow` until `timestamp` (negative when in the past). */

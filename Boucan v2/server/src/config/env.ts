@@ -26,10 +26,18 @@ const EnvSchema = z.object({
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).optional(),
   LOG_FORMAT: z.enum(['pretty', 'json']).optional(),
   ALLOWED_ORIGINS: csv,
+  BOUCAN_MICROGAMES: csv,
+  /** @deprecated alias of BOUCAN_MICROGAMES */
   BOUCAN_MINIGAMES: csv,
   BOUCAN_TIME_SCALE: z.coerce.number().positive().max(10).default(1),
   MAX_ROOMS: z.coerce.number().int().positive().optional(),
   MAX_CONNECTIONS_PER_IP: z.coerce.number().int().positive().optional(),
+  CLIENT_DIR: z.string().optional(),
+  /** Behind a reverse proxy / tunnel: take the client IP from CF-Connecting-IP / X-Forwarded-For. */
+  TRUST_PROXY: z
+    .enum(['true', 'false', '1', '0', ''])
+    .optional()
+    .transform((v) => v === 'true' || v === '1'),
 });
 
 export interface ServerSettings {
@@ -40,6 +48,10 @@ export interface ServerSettings {
   logFormat: LogFormat;
   /** null = every origin accepted. */
   allowedOrigins: string[] | null;
+  /** Built client directory to serve (default ../client/dist). */
+  clientDir: string | null;
+  /** Client IP read from proxy headers (per-IP connection limit). */
+  trustProxy: boolean;
   game: GameConfig;
 }
 
@@ -59,9 +71,11 @@ export function loadSettings(env: Record<string, string | undefined> = process.e
     logLevel: e.LOG_LEVEL ?? (e.NODE_ENV === 'test' ? 'warn' : 'info'),
     logFormat: e.LOG_FORMAT ?? (production ? 'json' : 'pretty'),
     allowedOrigins: e.ALLOWED_ORIGINS,
+    clientDir: e.CLIENT_DIR?.trim() || null,
+    trustProxy: e.TRUST_PROXY,
     game: resolveGameConfig(
       {
-        minigames: { enabled: e.BOUCAN_MINIGAMES },
+        microgames: { enabled: e.BOUCAN_MICROGAMES ?? e.BOUCAN_MINIGAMES },
         limits: {
           ...(e.MAX_ROOMS !== undefined && { maxRooms: e.MAX_ROOMS }),
           ...(e.MAX_CONNECTIONS_PER_IP !== undefined && { maxConnectionsPerIp: e.MAX_CONNECTIONS_PER_IP }),

@@ -67,8 +67,8 @@ describe('contract invariants', () => {
     for (const phase of MATCH_PHASES) {
       for (const next of PHASE_TRANSITIONS[phase]) expect(MATCH_PHASES).toContain(next);
     }
-    expect(canTransition('LOBBY', 'MATCH_STARTING')).toBe(true);
-    expect(canTransition('LOBBY', 'MINIGAME_ACTIVE')).toBe(false);
+    expect(canTransition('LOBBY', 'STAGE_INTRO')).toBe(true);
+    expect(canTransition('LOBBY', 'MICROGAME')).toBe(false);
   });
 
   it('every error code has a category', () => {

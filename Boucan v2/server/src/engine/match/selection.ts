@@ -1,52 +1,44 @@
-import type { Rng } from '@boucan/shared';
-import type { MiniGameModule } from '../minigames/api';
+import { inZone, type MicrogameInfo, type MicrogameKind, type Rng, type ZoneId } from '@boucan/shared';
 
 /**
- * Picks the next minigame of a match.
- *
- * - only modules allowed by the pool and fitting the participant count;
- * - no repeat until every candidate has been played once ("shuffle bag");
- * - never the same minigame twice in a row when another one is possible;
- * - weighted random among what is left.
- *
- * If no module fits the player count (players left mid-match), the player
- * range is ignored rather than stopping the match.
+ * Picks the next microgame of a given kind:
+ * - from the stage zone (any zone in "mix");
+ * - least played first (every microgame before any repeat);
+ * - never the same twice in a row when avoidable; weighted random.
+ * Falls back to any zone when the zone has no microgame of that kind.
  */
-export function selectMiniGame(
-  modules: readonly MiniGameModule[],
-  playerCount: number,
+export function pickMicrogame(
+  enabled: readonly MicrogameInfo[],
+  kind: MicrogameKind,
+  zone: ZoneId | 'mix',
   history: readonly string[],
   rng: Rng,
-): MiniGameModule {
-  if (modules.length === 0) throw new Error('selectMiniGame: no module');
-  const fitting = modules.filter((m) => playerCount >= m.minPlayers && playerCount <= m.maxPlayers);
-  const candidates = fitting.length > 0 ? fitting : modules;
+): MicrogameInfo | null {
+  const ofKind = enabled.filter((m) => m.kind === kind);
+  if (ofKind.length === 0) return null;
+  const inStage = zone === 'mix' ? ofKind : ofKind.filter((m) => inZone(m, zone));
+  const candidates = inStage.length > 0 ? inStage : ofKind;
 
   const last = history[history.length - 1];
   const notLast = candidates.filter((m) => m.id !== last);
   const pool = notLast.length > 0 ? notLast : candidates;
-
-  // Played count per id; prefer the least played ones.
   const played = new Map<string, number>();
   for (const id of history) played.set(id, (played.get(id) ?? 0) + 1);
-  const minPlayed = Math.min(...pool.map((m) => played.get(m.id) ?? 0));
-  const fresh = pool.filter((m) => (played.get(m.id) ?? 0) === minPlayed);
+  const least = Math.min(...pool.map((m) => played.get(m.id) ?? 0));
+  const fresh = pool.filter((m) => (played.get(m.id) ?? 0) === least);
 
-  return weightedPick(fresh, rng);
-}
-
-function weightedPick(modules: readonly MiniGameModule[], rng: Rng): MiniGameModule {
-  const total = modules.reduce((sum, m) => sum + Math.max(0, m.weight ?? 1), 0);
-  if (total <= 0) return rng.pick(modules);
+  const total = fresh.reduce((sum, m) => sum + (m.weight ?? 1), 0);
   let roll = rng.next() * total;
-  for (const m of modules) {
-    roll -= Math.max(0, m.weight ?? 1);
+  for (const m of fresh) {
+    roll -= m.weight ?? 1;
     if (roll < 0) return m;
   }
-  return modules[modules.length - 1]!;
+  return fresh[fresh.length - 1]!;
 }
 
-/** True when at least one module can be played by `playerCount` players. */
-export function hasEligible(modules: readonly MiniGameModule[], playerCount: number): boolean {
-  return modules.some((m) => playerCount >= m.minPlayers && playerCount <= m.maxPlayers);
+/** Zone the microgame is dressed in: the stage zone, or one of its zones in "mix". */
+export function roundZone(info: MicrogameInfo, zone: ZoneId | 'mix', rng: Rng, fallback: ZoneId): ZoneId {
+  if (zone !== 'mix') return zone;
+  if (info.zones === 'all') return fallback;
+  return rng.pick(info.zones);
 }

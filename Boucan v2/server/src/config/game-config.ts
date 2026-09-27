@@ -1,53 +1,64 @@
-import type { PhaseTimings } from '@boucan/shared';
-
 /**
- * Every tunable value of the backend, in one place. Change values here (or
- * through env overrides in env.ts), never as literals in the engine.
- *
- * Game-wide rules shared with the frontend (player counts, round options,
- * nickname lengths) live in shared/src/contracts/rules.ts instead.
+ * Every tunable value of the server, in one place. Change values here (or via
+ * env overrides in env.ts), never as literals in the engine.
+ * Rules shared with the client (player counts, lives options…) live in
+ * shared/src/contracts/rules.ts; microgame durations in the shared catalog.
  */
 export interface GameConfig {
-  timings: PhaseTimings;
+  timings: {
+    /** Stage title card before the first microgame. */
+    stageIntroMs: number;
+    /** Interlude between two microgames at tempo 1 (divided by the tempo). */
+    interludeMs: number;
+    /** Extra interlude time when "PLUS VITE !" is announced. */
+    speedUpExtraMs: number;
+    /** Extra interlude time before a boss / after a level up. */
+    bossExtraMs: number;
+    /** Extra interlude time before a duel (everyone gathers in the arena). */
+    duelExtraMs: number;
+    /** Verdict display at tempo 1 (divided by the tempo). */
+    verdictMs: number;
+    /** Reports accepted this long after the fuse burns out (network latency). Not scaled. */
+    reportGraceMs: number;
+    /** Final ranking display; null = wait for the host (returnToLobby). */
+    stageResultsMs: number | null;
+  };
+  rhythm: {
+    /** Solo/duel microgames before the boss of each level. */
+    gamesPerLevel: number;
+    /** A speed-up every N microgames. */
+    speedUpEvery: number;
+    tempoStep: number;
+    maxTempo: number;
+    /** Tempo at the start of level L = 1 + (L − 1) × levelTempoStep. */
+    levelTempoStep: number;
+    /** A duel every N microgames (0 = never). Needs ≥ 2 alive players. */
+    duelEvery: number;
+  };
+  bots: {
+    /** Skill range of new bots (0..1), drawn uniformly. */
+    minSkill: number;
+    maxSkill: number;
+    names: readonly string[];
+  };
   reconnect: {
-    /** A disconnected player keeps their lobby seat this long. */
     lobbyGraceMs: number;
-    /** During a match: after this, the player is marked `left` (kept in standings). */
+    /** During a match: after this, the player is marked `left`. */
     matchGraceMs: number;
-    /** A disconnected host is replaced after this delay (immediately if they leave). */
     hostTransferMs: number;
-    /** A room with no connected player is closed after this delay. */
+    /** A room with no connected human is closed after this delay. */
     emptyRoomTtlMs: number;
   };
-  scoring: {
-    /** Points by placement in a multiplayer round: 1st, 2nd, 3rd… (last value repeats). */
-    placementPoints: readonly number[];
-    /** Points for outcome "failure" in placement / normalized strategies. dnf always scores 0. */
-    failurePoints: number;
-    /** Points for a success with the "threshold" strategy. */
-    thresholdSuccessPoints: number;
-    /** Points for normalized = 1 with the "normalized" strategy. */
-    normalizedMaxPoints: number;
-    /** Solo rounds (one participant) use result.normalized when present, graded like this. */
-    soloGrades: readonly { min: number; points: number }[];
-  };
   network: {
-    /** Server simulation / timer resolution. */
     tickMs: number;
     maxMessageBytes: number;
-    /** A connection must send `hello` within this delay. */
     handshakeTimeoutMs: number;
-    /** Per-connection token bucket for every client message. */
     messageBurst: number;
     messagesPerSecond: number;
-    /** Protocol errors (bad JSON, unknown type, invalid payload) tolerated per window before closing. */
     maxProtocolErrors: number;
     protocolErrorWindowMs: number;
-    /** Upper bound of one-way latency compensation for time-critical inputs. */
     maxLagCompensationMs: number;
-    /** WebSocket ping interval (also measures RTT). */
     heartbeatMs: number;
-    /** Default broadcast rate of minigame shared state (modules may override). */
     defaultStateHz: number;
   };
   limits: {
@@ -55,30 +66,42 @@ export interface GameConfig {
     maxConnectionsPerIp: number;
   };
   characters: {
-    /** Allowed character ids; null = any syntactically valid CharacterId (roster is frontend-owned). */
+    /** Allowed character ids; null = any valid id (the roster belongs to the client). */
     allowed: readonly string[] | null;
   };
-  minigames: {
-    /** Ids of playable minigames; null = every registered module. */
+  microgames: {
+    /** Playable microgame ids; null = the whole catalog. */
     enabled: readonly string[] | null;
-    /** Multiplies every module's durationMs (dev/test speed-up). Modules must read ctx.durationMs. */
-    durationScale: number;
   };
-  /** Fixed seed for match RNG (tests, fixtures). null = random per match. */
+  /** Multiplies every duration (dev/test speed-up). */
+  timeScale: number;
+  /** Fixed RNG seed (tests). null = random. */
   seed: number | null;
 }
 
 export const DEFAULT_GAME_CONFIG: GameConfig = {
   timings: {
-    matchStartingMs: 3_000,
-    preparingMinMs: 3_000,
-    preparingMaxMs: 12_000,
-    countdownMs: 3_000,
-    endingMinMs: 800,
-    reportGraceMs: 3_000,
-    resultsMs: 5_000,
-    intermissionMs: 4_000,
-    matchResultsMs: null,
+    stageIntroMs: 3_200,
+    interludeMs: 2_300,
+    speedUpExtraMs: 1_300,
+    bossExtraMs: 1_800,
+    duelExtraMs: 1_200,
+    verdictMs: 1_400,
+    reportGraceMs: 350,
+    stageResultsMs: null,
+  },
+  rhythm: {
+    gamesPerLevel: 10,
+    speedUpEvery: 4,
+    tempoStep: 0.14,
+    maxTempo: 1.7,
+    levelTempoStep: 0.12,
+    duelEvery: 5,
+  },
+  bots: {
+    minSkill: 0.55,
+    maxSkill: 0.88,
+    names: ['Robot Rita', 'Bip Boup', 'Cyber Momo', 'Robo Lulu', 'Zorglub', 'Tic Tac', 'Méca Zoé', 'Boulon'],
   },
   reconnect: {
     lobbyGraceMs: 30_000,
@@ -86,20 +109,8 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
     hostTransferMs: 5_000,
     emptyRoomTtlMs: 60_000,
   },
-  scoring: {
-    placementPoints: [10, 7, 5, 3, 2, 1, 1, 1],
-    failurePoints: 0,
-    thresholdSuccessPoints: 6,
-    normalizedMaxPoints: 10,
-    soloGrades: [
-      { min: 0.8, points: 10 },
-      { min: 0.55, points: 7 },
-      { min: 0.3, points: 5 },
-      { min: 0, points: 2 },
-    ],
-  },
   network: {
-    tickMs: 50,
+    tickMs: 25,
     maxMessageBytes: 16 * 1024,
     handshakeTimeoutMs: 10_000,
     messageBurst: 60,
@@ -108,19 +119,15 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
     protocolErrorWindowMs: 10_000,
     maxLagCompensationMs: 150,
     heartbeatMs: 5_000,
-    defaultStateHz: 10,
+    defaultStateHz: 15,
   },
   limits: {
     maxRooms: 500,
     maxConnectionsPerIp: 32,
   },
-  characters: {
-    allowed: null,
-  },
-  minigames: {
-    enabled: null,
-    durationScale: 1,
-  },
+  characters: { allowed: null },
+  microgames: { enabled: null },
+  timeScale: 1,
   seed: null,
 };
 
@@ -130,33 +137,18 @@ export type GameConfigOverrides = {
     : Partial<GameConfig[K]>;
 };
 
-/** Merges overrides (one level deep) onto the defaults, then applies a time scale to phase timings. */
-export function resolveGameConfig(overrides: GameConfigOverrides = {}, timeScale = 1): GameConfig {
-  const merged: GameConfig = {
+/** Merges overrides (one level deep) onto the defaults. */
+export function resolveGameConfig(overrides: GameConfigOverrides = {}, timeScale?: number): GameConfig {
+  return {
     timings: { ...DEFAULT_GAME_CONFIG.timings, ...overrides.timings },
+    rhythm: { ...DEFAULT_GAME_CONFIG.rhythm, ...overrides.rhythm },
+    bots: { ...DEFAULT_GAME_CONFIG.bots, ...overrides.bots },
     reconnect: { ...DEFAULT_GAME_CONFIG.reconnect, ...overrides.reconnect },
-    scoring: { ...DEFAULT_GAME_CONFIG.scoring, ...overrides.scoring },
     network: { ...DEFAULT_GAME_CONFIG.network, ...overrides.network },
     limits: { ...DEFAULT_GAME_CONFIG.limits, ...overrides.limits },
     characters: { ...DEFAULT_GAME_CONFIG.characters, ...overrides.characters },
-    minigames: { ...DEFAULT_GAME_CONFIG.minigames, ...overrides.minigames },
+    microgames: { ...DEFAULT_GAME_CONFIG.microgames, ...overrides.microgames },
+    timeScale: timeScale ?? overrides.timeScale ?? DEFAULT_GAME_CONFIG.timeScale,
     seed: overrides.seed !== undefined ? overrides.seed : DEFAULT_GAME_CONFIG.seed,
   };
-  if (timeScale !== 1) {
-    merged.minigames = { ...merged.minigames, durationScale: merged.minigames.durationScale * timeScale };
-    const t = merged.timings;
-    const s = (ms: number) => Math.max(0, Math.round(ms * timeScale));
-    merged.timings = {
-      matchStartingMs: s(t.matchStartingMs),
-      preparingMinMs: s(t.preparingMinMs),
-      preparingMaxMs: s(t.preparingMaxMs),
-      countdownMs: s(t.countdownMs),
-      endingMinMs: s(t.endingMinMs),
-      reportGraceMs: s(t.reportGraceMs),
-      resultsMs: s(t.resultsMs),
-      intermissionMs: s(t.intermissionMs),
-      matchResultsMs: t.matchResultsMs === null ? null : s(t.matchResultsMs),
-    };
-  }
-  return merged;
 }

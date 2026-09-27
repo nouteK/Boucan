@@ -1,15 +1,16 @@
 import { createServer, type IncomingMessage, type Server as HttpServer, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { WebSocket, WebSocketServer } from 'ws';
-import { CONTRACT_REVISION, PROTOCOL_VERSION } from '@boucan/shared';
+import { PROTOCOL_VERSION } from '@boucan/shared';
 import type { ServerSettings } from '../config/env';
 import type { Logger } from '../engine/logger';
 import type { MiniGameModule } from '../engine/minigames/api';
-import { MINIGAME_MODULES } from '../engine/minigames/catalog';
+import { DUEL_MODULES } from '../engine/minigames/catalog';
 import { MiniGameRegistry } from '../engine/minigames/registry';
 import { newId } from '../engine/util/ids';
 import { Gateway } from '../gateway/gateway';
 import { SERVER_VERSION } from '../version';
+import { createStaticHandler } from './static';
 
 /** WebSocket endpoint path. */
 export const WS_PATH = '/ws';
@@ -17,8 +18,10 @@ export const WS_PATH = '/ws';
 export interface BoucanServerOptions {
   settings: ServerSettings;
   logger: Logger;
-  /** Override the module catalog (tests). */
+  /** Override the duel modules (tests). */
   modules?: readonly MiniGameModule[];
+  /** Built client to serve (client/dist). */
+  staticDir?: string;
   clock?: () => number;
 }
 
@@ -44,7 +47,8 @@ export function createBoucanServer(options: BoucanServerOptions): BoucanServer {
   const { settings, logger } = options;
   const config = settings.game;
   const startedAt = Date.now();
-  const registry = new MiniGameRegistry(options.modules ?? MINIGAME_MODULES, config.minigames.enabled);
+  const registry = new MiniGameRegistry(options.modules ?? DUEL_MODULES, config.microgames.enabled);
+  const serveStatic = options.staticDir ? createStaticHandler(options.staticDir) : null;
   const gateway = new Gateway({
     config,
     registry,
@@ -57,7 +61,16 @@ export function createBoucanServer(options: BoucanServerOptions): BoucanServer {
   const tracked = new Set<Tracked>();
   const perIp = new Map<string, number>();
 
-  const http = createServer((req, res) => handleHttp(req, res));
+  // A bad HTTP request must never take the game down.
+  const http = createServer((req, res) => {
+    try {
+      handleHttp(req, res);
+    } catch (error) {
+      logger.error('http request failed', { url: req.url?.slice(0, 200) }, error);
+      if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'internal error' }));
+    }
+  });
 
   function handleHttp(req: IncomingMessage, res: ServerResponse): void {
     const path = (req.url ?? '/').split('?')[0];
@@ -72,7 +85,6 @@ export function createBoucanServer(options: BoucanServerOptions): BoucanServer {
       return json(200, {
         status: 'ok',
         protocolVersion: PROTOCOL_VERSION,
-        contractRevision: CONTRACT_REVISION,
         serverVersion: SERVER_VERSION,
         environment: settings.environment,
         uptimeS: Math.round((Date.now() - startedAt) / 1000),
@@ -85,6 +97,7 @@ export function createBoucanServer(options: BoucanServerOptions): BoucanServer {
       const { connectionId: _unused, ...info } = gateway.serverInfo('http');
       return json(200, { ...info, websocketPath: WS_PATH });
     }
+    if (serveStatic?.(req, res)) return;
     json(404, { error: 'not found', hint: `WebSocket endpoint is ${WS_PATH}; see /health and /api/info` });
   }
 
@@ -106,13 +119,23 @@ export function createBoucanServer(options: BoucanServerOptions): BoucanServer {
       logger.warn('websocket origin refused', { origin: req.headers.origin });
       return reject(403, 'Forbidden');
     }
-    const ip = req.socket.remoteAddress ?? 'unknown';
+    const ip = clientIp(req);
     if ((perIp.get(ip) ?? 0) >= config.limits.maxConnectionsPerIp) {
       logger.warn('too many connections from ip', { ip });
       return reject(429, 'Too Many Requests');
     }
     wss.handleUpgrade(req, socket, head, (ws) => onConnection(ws, ip));
   });
+
+  /** Behind a proxy every socket comes from the proxy: trust its headers only when told to. */
+  function clientIp(req: IncomingMessage): string {
+    if (settings.trustProxy) {
+      const header = req.headers['cf-connecting-ip'] ?? req.headers['x-forwarded-for'];
+      const first = (Array.isArray(header) ? header[0] : header)?.split(',')[0]?.trim();
+      if (first) return first;
+    }
+    return req.socket.remoteAddress ?? 'unknown';
+  }
 
   function onConnection(ws: WebSocket, ip: string): void {
     perIp.set(ip, (perIp.get(ip) ?? 0) + 1);

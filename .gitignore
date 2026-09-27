@@ -1,4 +1,3 @@
-# Common to every sub-project (Boucan v2 = backend, Boucan-v2_Astra = frontend)
 node_modules/
 dist/
 coverage/
@@ -6,3 +5,5 @@ coverage/
 *.log
 .DS_Store
 Thumbs.db
+# Downloaded tools (not part of the sources)
+cloudflared.exe

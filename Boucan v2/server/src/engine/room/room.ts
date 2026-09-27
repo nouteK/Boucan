@@ -16,7 +16,6 @@ import type { GameConfig } from '../../config/game-config';
 import { EngineError, fail } from '../errors';
 import type { Logger } from '../logger';
 import { Match } from '../match/match';
-import { hasEligible } from '../match/selection';
 import type { MiniGameRegistry } from '../minigames/registry';
 import type { EngineOutput } from '../output';
 import { newId } from '../util/ids';
@@ -27,6 +26,8 @@ export interface RoomDeps {
   logger: Logger;
   output: EngineOutput;
   rttOf(playerId: string): number;
+  /** Server-side randomness for bots (names, skills). */
+  random(): number;
   /** The player's seat is gone for good: invalidate their session token. */
   releaseSession(playerId: string): void;
 }
@@ -40,23 +41,29 @@ interface RoomPlayer {
   connection: ConnectionStatus;
   joinedAt: number;
   disconnectedAt: number | null;
+  /** null for humans. */
+  bot: { skill: number } | null;
 }
 
 export type LeaveReason = 'left' | 'kicked' | 'timeout';
 
+export const DEFAULT_MATCH_CONFIG: MatchConfig = {
+  zone: 'mix',
+  lives: GAME_RULES.defaultLives,
+  length: GAME_RULES.defaultLength,
+};
+
 /**
- * A room: its players, host, lobby configuration and match. All game-rule
- * checks for lobby actions live here; the match flow lives in Match.
- *
- * Every public command ends with flush(): at most one snapshot per command,
- * followed by the semantic events it produced.
+ * A room: players (humans and server bots), host, lobby configuration and the
+ * match. Every public command ends with flush(): at most one snapshot per
+ * command, followed by the semantic events it produced.
  */
 export class Room {
   readonly code: string;
   readonly createdAt: number;
   private readonly players = new Map<string, RoomPlayer>();
   private hostId: string | null = null;
-  private config: MatchConfig;
+  private config: MatchConfig = { ...DEFAULT_MATCH_CONFIG };
   private readonly match: Match;
   private rev = 0;
   private dirty = true;
@@ -71,7 +78,6 @@ export class Room {
     this.code = code;
     this.createdAt = now;
     this.logger = deps.logger.child({ room: code });
-    this.config = { rounds: GAME_RULES.defaultRounds, minigamePool: null };
     this.match = new Match(
       {
         code,
@@ -79,8 +85,10 @@ export class Room {
         registry: deps.registry,
         logger: this.logger,
         output: deps.output,
-        activePlayerIds: () => this.sorted().filter((p) => p.connection !== 'left').map((p) => p.id),
+        seatedIds: () => this.seatedPlayerIds(),
         isConnected: (id) => this.players.get(id)?.connection === 'connected',
+        isBot: (id) => this.players.get(id)?.bot != null,
+        skillOf: (id) => this.players.get(id)?.bot?.skill ?? 0,
         seatOf: (id) => this.players.get(id)?.seat ?? GAME_RULES.maxPlayers,
         rttOf: (id) => deps.rttOf(id),
         markDirty: () => {
@@ -95,14 +103,6 @@ export class Room {
 
   // ─── Queries ───────────────────────────────────────────────────────────────
 
-  get playerCount(): number {
-    return this.players.size;
-  }
-
-  get connectedCount(): number {
-    return this.sorted().filter((p) => p.connection === 'connected').length;
-  }
-
   get phase() {
     return this.match.currentPhase;
   }
@@ -116,19 +116,25 @@ export class Room {
     return p !== undefined && p.connection !== 'left';
   }
 
-  /** No connected player for longer than the TTL (or nobody at all). */
+  /** No connected human for longer than the TTL (bots never keep a room alive). */
   isAbandoned(now: number): boolean {
-    const seated = this.sorted().filter((p) => p.connection !== 'left');
-    if (seated.length === 0) return true;
-    if (seated.some((p) => p.connection === 'connected')) return false;
-    const lastSeen = Math.max(...seated.map((p) => p.disconnectedAt ?? now));
+    const humans = this.sorted().filter((p) => p.connection !== 'left' && !p.bot);
+    if (humans.length === 0) return true;
+    if (humans.some((p) => p.connection === 'connected')) return false;
+    const lastSeen = Math.max(...humans.map((p) => p.disconnectedAt ?? now));
     return now - lastSeen >= this.deps.config.reconnect.emptyRoomTtlMs;
   }
 
-  /** Ids of every player still holding a seat (for cleanup). */
+  /** Every player still holding a seat (humans and bots), in seat order. */
   seatedPlayerIds(): string[] {
     return this.sorted()
       .filter((p) => p.connection !== 'left')
+      .map((p) => p.id);
+  }
+
+  humanIds(): string[] {
+    return this.sorted()
+      .filter((p) => p.connection !== 'left' && !p.bot)
       .map((p) => p.id);
   }
 
@@ -141,7 +147,7 @@ export class Room {
       rev: Math.max(1, this.rev),
       serverTime: now,
       lobby: this.lobby(),
-      match: this.match.toState(this.config.rounds),
+      match: this.match.toState(this.config),
     };
   }
 
@@ -152,23 +158,23 @@ export class Room {
     if (this.players.size >= GAME_RULES.maxPlayers) fail('ROOM_FULL');
     const nickname = this.validNickname(rawNickname);
     const character = characterId === undefined ? null : this.validCharacter(characterId);
-    const player: RoomPlayer = {
-      id: newId('p'),
-      nickname,
-      characterId: character,
-      seat: this.firstFreeSeat(),
-      ready: false,
-      connection: 'connected',
-      joinedAt: now,
-      disconnectedAt: null,
-    };
-    this.players.set(player.id, player);
+    const player = this.seatPlayer(nickname, character, null, now);
     if (this.hostId === null) this.setHost(player.id);
-    this.logger.info('player joined', { player: player.id, nickname, players: this.players.size });
-    this.pendingEvents.push({ kind: 'playerJoined', playerId: player.id });
-    this.dirty = true;
     this.flush(now);
     return player.id;
+  }
+
+  addBot(byId: string, now: number): void {
+    this.requireHost(byId);
+    this.requireLobby();
+    if (this.players.size >= GAME_RULES.maxPlayers) fail('ROOM_FULL');
+    const { bots } = this.deps.config;
+    const taken = new Set(this.sorted().map((p) => p.nickname));
+    const name = bots.names.find((n) => !taken.has(n)) ?? dedupeNickname('Robot', [...taken]);
+    const skill = bots.minSkill + this.deps.random() * (bots.maxSkill - bots.minSkill);
+    const player = this.seatPlayer(name, null, { skill: Math.round(skill * 100) / 100 }, now);
+    player.ready = true;
+    this.flush(now);
   }
 
   /** Explicit leave, kick or grace expiry. */
@@ -176,28 +182,29 @@ export class Room {
     const player = this.players.get(playerId);
     if (!player || player.connection === 'left') return;
     if (this.match.inProgress) {
-      // Kept (as `left`) so standings stay complete; purged when back in the lobby.
       player.connection = 'left';
       player.ready = false;
-      this.match.onPlayerDisconnected(playerId, now);
+      this.match.onPlayerLeft(playerId);
     } else {
       this.players.delete(playerId);
     }
-    this.deps.releaseSession(playerId);
-    if (reason !== 'left') this.deps.output.sessionEnded(playerId, reason === 'kicked' ? 'kicked' : 'expired');
-    this.logger.info('player left', { player: playerId, reason, players: this.seatedPlayerIds().length });
+    if (!player.bot) {
+      this.deps.releaseSession(playerId);
+      if (reason !== 'left') this.deps.output.sessionEnded(playerId, reason === 'kicked' ? 'kicked' : 'expired');
+    }
+    this.logger.info('player left', { player: playerId, reason, bot: player.bot !== null });
     this.pendingEvents.push({ kind: 'playerLeft', playerId, reason });
     if (this.hostId === playerId) this.reassignHost();
     this.dirty = true;
+    // No human left: the room is abandoned (manager closes it on the next tick).
     this.flush(now);
   }
 
   disconnect(playerId: string, now: number): void {
     const player = this.players.get(playerId);
-    if (!player || player.connection !== 'connected') return;
+    if (!player || player.connection !== 'connected' || player.bot) return;
     player.connection = 'disconnected';
     player.disconnectedAt = now;
-    this.match.onPlayerDisconnected(playerId, now);
     this.logger.info('player disconnected', { player: playerId });
     this.pendingEvents.push({ kind: 'playerDisconnected', playerId });
     this.dirty = true;
@@ -210,7 +217,6 @@ export class Room {
     if (player.connection === 'connected') return;
     player.connection = 'connected';
     player.disconnectedAt = null;
-    this.match.onPlayerReconnected(playerId, now);
     this.logger.info('player reconnected', { player: playerId });
     this.pendingEvents.push({ kind: 'playerReconnected', playerId });
     if (this.hostId === null) this.setHost(playerId);
@@ -229,11 +235,7 @@ export class Room {
     this.flush(now);
   }
 
-  updatePlayer(
-    playerId: string,
-    update: { nickname?: string; characterId?: string | null },
-    now: number,
-  ): void {
+  updatePlayer(playerId: string, update: { nickname?: string; characterId?: string | null }, now: number): void {
     const player = this.requireSeated(playerId);
     this.requireLobby();
     const nickname = update.nickname === undefined ? undefined : this.validNickname(update.nickname, playerId);
@@ -264,34 +266,18 @@ export class Room {
 
   /** Used at creation (no host check: the creator is the host). */
   applyConfig(update: Partial<MatchConfig>): void {
-    if (update.minigamePool !== undefined && update.minigamePool !== null) {
-      const unknown = update.minigamePool.find((id) => !this.deps.registry.isEnabled(id));
-      if (unknown !== undefined) fail('CONFIG_INVALID', { reason: 'unknownMinigame', minigameId: unknown });
-    }
-    this.config = {
-      rounds: update.rounds ?? this.config.rounds,
-      minigamePool:
-        update.minigamePool === undefined
-          ? this.config.minigamePool
-          : update.minigamePool === null
-            ? null
-            : dedupe(update.minigamePool),
-    };
+    this.config = { ...this.config, ...Object.fromEntries(Object.entries(update).filter(([, v]) => v !== undefined)) };
   }
 
   start(byId: string, now: number): void {
     this.requireHost(byId);
     this.requireLobby();
-    const connected = this.sorted().filter((p) => p.connection === 'connected');
-    if (connected.length < GAME_RULES.minPlayers) fail('NOT_ENOUGH_PLAYERS');
-    if (connected.some((p) => !p.ready)) fail('NOT_ALL_READY');
-    const pool = this.poolModules();
-    if (!hasEligible(pool, connected.length)) {
-      fail('CONFIG_INVALID', { reason: 'noEligibleMinigame', players: connected.length });
-    }
+    const humans = this.sorted().filter((p) => !p.bot && p.connection === 'connected');
+    if (humans.length === 0 || this.players.size < GAME_RULES.minPlayers) fail('NOT_ENOUGH_PLAYERS');
+    if (humans.some((p) => !p.ready)) fail('NOT_ALL_READY');
     // Seats left empty by closed tabs are freed rather than dragged into the match.
     for (const p of this.sorted()) {
-      if (p.connection !== 'connected') {
+      if (!p.bot && p.connection !== 'connected') {
         this.players.delete(p.id);
         this.deps.releaseSession(p.id);
         this.deps.output.sessionEnded(p.id, 'expired');
@@ -311,35 +297,22 @@ export class Room {
 
   returnToLobby(byId: string, now: number): void {
     this.requireHost(byId);
-    if (this.match.currentPhase !== 'MATCH_RESULTS') fail('INVALID_PHASE');
+    if (this.match.currentPhase !== 'STAGE_RESULTS') fail('INVALID_PHASE');
     this.match.returnToLobby(now);
     this.flush(now);
   }
 
-  // ─── Minigame traffic ──────────────────────────────────────────────────────
+  // ─── Microgame traffic ─────────────────────────────────────────────────────
 
-  minigameReady(playerId: string, sessionId: string, now: number): void {
+  minigameInput(playerId: string, roundId: string, input: JsonValue, at: number | undefined, now: number): void {
     this.requireSeated(playerId);
-    this.match.minigameReady(playerId, sessionId);
+    this.match.input(playerId, roundId, input, at, now);
     this.flush(now);
   }
 
-  minigameInput(
-    playerId: string,
-    sessionId: string,
-    input: JsonValue,
-    at: number | undefined,
-    seq: number | undefined,
-    now: number,
-  ): void {
+  minigameReport(playerId: string, roundId: string, result: PlayerResult, now: number): void {
     this.requireSeated(playerId);
-    this.match.minigameInput(playerId, sessionId, input, at, seq, now);
-    this.flush(now);
-  }
-
-  minigameReport(playerId: string, sessionId: string, result: PlayerResult, now: number): void {
-    this.requireSeated(playerId);
-    this.match.minigameReport(playerId, sessionId, result, now);
+    this.match.report(playerId, roundId, result, now);
     this.flush(now);
   }
 
@@ -352,7 +325,6 @@ export class Room {
     this.flush(now);
   }
 
-  /** Sends the snapshot (if anything changed) then the queued events. */
   flush(now: number): void {
     if (this.dirty) {
       this.dirty = false;
@@ -366,9 +338,8 @@ export class Room {
     }
   }
 
-  /** Ends every remaining seat (room closing). */
   close(): void {
-    for (const id of this.seatedPlayerIds()) {
+    for (const id of this.humanIds()) {
       this.deps.releaseSession(id);
       this.deps.output.sessionEnded(id, 'roomClosed');
     }
@@ -378,37 +349,58 @@ export class Room {
 
   // ─── Internals ─────────────────────────────────────────────────────────────
 
+  private seatPlayer(nickname: string, characterId: string | null, bot: RoomPlayer['bot'], now: number): RoomPlayer {
+    const player: RoomPlayer = {
+      id: newId(bot ? 'b' : 'p'),
+      nickname,
+      characterId,
+      seat: this.firstFreeSeat(),
+      ready: false,
+      connection: 'connected',
+      joinedAt: now,
+      disconnectedAt: null,
+      bot,
+    };
+    this.players.set(player.id, player);
+    this.logger.info(bot ? 'bot added' : 'player joined', { player: player.id, nickname, players: this.players.size });
+    this.pendingEvents.push({ kind: 'playerJoined', playerId: player.id });
+    this.dirty = true;
+    return player;
+  }
+
   private lobby(): Lobby {
-    const players: Player[] = this.sorted().map((p) => ({
-      id: p.id,
-      nickname: p.nickname,
-      characterId: p.characterId,
-      seat: p.seat,
-      isHost: p.id === this.hostId,
-      ready: p.ready,
-      connection: p.connection,
-      score: this.match.scoreOf(p.id),
-      joinedAt: p.joinedAt,
-    }));
-    const connected = players.filter((p) => p.connection === 'connected');
+    const inMatch = this.match.inProgress;
+    const players: Player[] = this.sorted().map((p) => {
+      const s = this.match.stateOf(p.id);
+      return {
+        id: p.id,
+        nickname: p.nickname,
+        characterId: p.characterId,
+        seat: p.seat,
+        isHost: p.id === this.hostId,
+        isBot: p.bot !== null,
+        ready: p.ready,
+        connection: p.connection,
+        lives: inMatch ? (s?.lives ?? 0) : this.config.lives,
+        wins: inMatch ? (s?.wins ?? 0) : 0,
+        alive: inMatch ? (s?.alive ?? false) : true,
+      };
+    });
+    const humans = players.filter((p) => !p.isBot && p.connection === 'connected');
     return {
       code: this.code,
       hostId: this.hostId,
       players,
-      config: { rounds: this.config.rounds, minigamePool: this.config.minigamePool },
+      config: { ...this.config },
       maxPlayers: GAME_RULES.maxPlayers,
-      canStart:
-        !this.match.inProgress &&
-        connected.length >= GAME_RULES.minPlayers &&
-        connected.every((p) => p.ready) &&
-        hasEligible(this.poolModules(), connected.length),
+      canStart: !inMatch && humans.length > 0 && humans.every((p) => p.ready),
     };
   }
 
   private onReturnToLobby(now: number): void {
     for (const p of this.sorted()) {
       if (p.connection === 'left') this.players.delete(p.id);
-      else p.ready = false;
+      else p.ready = p.bot !== null;
     }
     if (this.hostId !== null && !this.players.has(this.hostId)) this.reassignHost();
     this.logger.info('back to lobby', { players: this.players.size });
@@ -429,7 +421,7 @@ export class Room {
   private transferHostIfAway(now: number): void {
     const host = this.hostId === null ? undefined : this.players.get(this.hostId);
     if (host === undefined) {
-      if (this.players.size > 0) this.reassignHost();
+      if (this.humanIds().length > 0) this.reassignHost();
       return;
     }
     if (
@@ -441,15 +433,14 @@ export class Room {
     }
   }
 
-  /** New host = connected player with the lowest seat (fallback: any seated player). */
+  /** New host = connected human with the lowest seat (bots are never host). */
   private reassignHost(): void {
-    const seated = this.sorted().filter((p) => p.connection !== 'left' && p.id !== this.hostId);
-    const next = seated.find((p) => p.connection === 'connected') ?? null;
+    const humans = this.sorted().filter((p) => !p.bot && p.connection !== 'left' && p.id !== this.hostId);
+    const next = humans.find((p) => p.connection === 'connected') ?? null;
     if (next === null) {
-      // Nobody else can take over: keep a disconnected host rather than none.
       const current = this.hostId === null ? undefined : this.players.get(this.hostId);
       if (current && current.connection !== 'left') return;
-      this.setHost(seated[0]?.id ?? null);
+      this.setHost(humans[0]?.id ?? null);
       return;
     }
     this.setHost(next.id);
@@ -459,14 +450,8 @@ export class Room {
     if (playerId === this.hostId) return;
     const previousHostId = this.hostId;
     this.hostId = playerId;
-    this.logger.info('host changed', { player: playerId ?? 'none', previous: previousHostId ?? 'none' });
     this.pendingEvents.push({ kind: 'hostChanged', hostId: playerId, previousHostId });
     this.dirty = true;
-  }
-
-  private poolModules() {
-    const pool = this.config.minigamePool;
-    return this.deps.registry.enabled().filter((m) => pool === null || pool.includes(m.id));
   }
 
   private validNickname(raw: string, selfId?: string): string {
@@ -511,8 +496,4 @@ export class Room {
   private sorted(): RoomPlayer[] {
     return [...this.players.values()].sort((a, b) => a.seat - b.seat);
   }
-}
-
-function dedupe(ids: readonly string[]): string[] {
-  return [...new Set(ids)];
 }
