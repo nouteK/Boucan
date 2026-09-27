@@ -67,22 +67,41 @@ Avec `TRUST_PROXY=true`, n'exposer le port 3001 **que** derrière le proxy (sino
 
 Voir [.env.example](../.env.example). En production : `NODE_ENV=production` (logs JSON, `BOUCAN_TIME_SCALE` doit valoir 1).
 
+## Branches : `main` en ligne, `dev` à tester
+
+Dépôt : [github.com/nouteK/Boucan](https://github.com/nouteK/Boucan) (racine git = dossier parent de `Boucan v2`).
+
+| Branche | Où elle tourne |
+| --- | --- |
+| `main` | le jeu en ligne : conteneur `boucan-game` (port 3001) + tunnel public de production |
+| `dev` | la version de test : conteneur `boucan-test` (port 3002) + son propre lien public temporaire |
+
+Cycle : les commits arrivent sur `dev` → on essaie avec **`Tester la version dev.bat`** → une fois validée, `dev` est fusionnée dans `main` → **`Mettre en ligne.bat`**. Chaque push sur `main` ou `dev` lance tests + build sur GitHub Actions (`.github/workflows/ci.yml`).
+
+Les scripts construisent l'image depuis la **branche git** (`git archive`, la plus récente entre ce PC et GitHub), jamais depuis les fichiers du dossier : des modifications en cours, non commitées, ne partent jamais en ligne par accident. L'image porte la branche et le commit (labels `boucan.branch`, `org.opencontainers.image.revision`), affichés en fin de script.
+
 ## Mise à jour
 
 ### En un clic (Windows, Docker Desktop)
 
 Dans le dossier `Boucan v2` :
 
-- **`Mettre en ligne.bat`** (double-clic) : met en ligne la version du dossier. Le script (`scripts/deploy.ps1`) vérifie que Docker Desktop tourne, prévient et demande confirmation si des joueurs sont connectés, garde la version actuelle sous le nom `boucan:precedente`, reconstruit l'image, remplace le conteneur `boucan-game` (même nom, même port : le tunnel suit sans redémarrer, l'adresse publique ne change pas), puis vérifie la santé du jeu **dans** le conteneur et affiche l'adresse publique.
+- **`Mettre en ligne.bat`** (double-clic) : met en ligne la branche `main`. Le script (`scripts/deploy.ps1`) vérifie que Docker Desktop tourne, prévient et demande confirmation si des joueurs sont connectés, garde la version actuelle sous le nom `boucan:precedente`, construit l'image depuis `main`, remplace le conteneur `boucan-game` (même nom, même port : le tunnel suit sans redémarrer, l'adresse publique ne change pas), puis vérifie la santé du jeu **dans** le conteneur et affiche la version (commit) et l'adresse publique.
 - **`Revenir a la version precedente.bat`** : remet l'image gardée (`boucan:precedente`) ; relancé une deuxième fois, il revient à la version d'après.
 - Options en ligne de commande : `powershell -File scripts\deploy.ps1 [-Rollback] [-Force]` (`-Force` = sans confirmation).
+
+### Version de test (branche `dev`)
+
+- **`Tester la version dev.bat`** : construit la branche `dev` (image `boucan:test`) et la lance à côté de la production (projet compose `boucan-test`, fichier `docker-compose.test.yml`) : **http://localhost:3002** et un lien public `https://….trycloudflare.com` pour jouer à plusieurs ou sur téléphone. Relancé, il met à jour la version de test ; le lien public reste le même tant que le tunnel de test tourne. Le jeu en ligne n'est jamais touché.
+- **`Arreter la version dev.bat`** : arrête la version de test et son tunnel.
+- Options : `powershell -File scripts\test-dev.ps1 [-Local] [-Stop] [-Branch <nom>]` (`-Local` = sans lien public ; `-Branch` = essayer une autre branche). Port : `BOUCAN_TEST_PORT` dans `.env` (3002 par défaut).
 
 Si un autre programme de l'ordinateur écoute aussi sur le port 3001 (par exemple un `npm run dev` oublié), le script le signale : `http://localhost:3001` peut alors afficher ce programme au lieu de la version Docker. Le lien public (tunnel Docker) n'est pas concerné. Arrêter ce programme ou lancer le dev sur un autre port (`PORT=3003 BOUCAN_SERVER_PORT=3003 npm run dev`).
 
 ### À la main
 
 ```bash
-git pull
+git checkout main && git pull
 docker compose up -d --build        # ou : npm ci && npm run build && redémarrer le processus
 ```
 

@@ -1,0 +1,31 @@
+# BOUCAN — tests + typecheck + build on every push to main / dev and on pull requests.
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: Boucan v2
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: Boucan v2/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      # typecheck (4 packages) + client (Vite) + server bundle (esbuild)
+      - run: npm run build

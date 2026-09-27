@@ -1,0 +1,32 @@
+# BOUCAN — version de TEST (branche dev), à côté de la production et sans y toucher.
+# Lancée par « Tester la version dev.bat » (scripts/test-dev.ps1), qui construit l'image
+# boucan:test depuis la branche dev. Arrêt : « Arreter la version dev.bat ».
+#
+#   docker compose -f docker-compose.test.yml up -d --no-build     → http://localhost:3002
+#   docker logs boucan-test-tunnel                                  → lien public temporaire
+#
+# Réglages fixés ici (le .env du dossier sert à la production) ; seul BOUCAN_TEST_PORT est lu.
+name: boucan-test
+
+services:
+  boucan:
+    image: boucan:test
+    container_name: boucan-test
+    restart: "no"
+    ports:
+      - "${BOUCAN_TEST_PORT:-3002}:3001"
+    environment:
+      NODE_ENV: production
+      # Any origin: the test URL changes with each tunnel.
+      ALLOWED_ORIGINS: ""
+      TRUST_PROXY: "true"
+      LOG_LEVEL: info
+
+  # Temporary public URL (https://<random>.trycloudflare.com), separate from the production tunnel.
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: boucan-test-tunnel
+    restart: "no"
+    command: tunnel --no-autoupdate --url http://boucan:3001
+    depends_on:
+      - boucan

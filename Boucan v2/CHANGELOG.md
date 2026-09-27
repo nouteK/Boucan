@@ -2,6 +2,18 @@
 
 Versions : `PROTOCOL_VERSION` (cassant) / `CONTRACT_REVISION` (compatible) / version serveur. Plus récent en haut.
 
+## 2026-09-27 — dépôt GitHub, branches `main` / `dev`, version de test
+
+Jeu inchangé. Voir [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#branches--main-en-ligne-dev-à-tester).
+
+| Module | Changement |
+| --- | --- |
+| git | Dépôt [nouteK/Boucan](https://github.com/nouteK/Boucan) : `main` = version en ligne (celle du 27/09 16:32), `dev` = travail en cours ; README à la racine du dépôt |
+| CI | GitHub Actions (`.github/workflows/ci.yml`) : `npm ci`, `npm test`, `npm run build` à chaque push sur `main` / `dev` |
+| déploiement | `Mettre en ligne.bat` construit l'image depuis la **branche `main`** (`git archive`, la plus récente entre le PC et GitHub) au lieu des fichiers du dossier ; l'image porte branche + commit (labels), affichés en fin de mise en ligne ; le tunnel de production est retrouvé par ses labels compose |
+| déploiement | Nouveau `Tester la version dev.bat` / `Arreter la version dev.bat` (`scripts/test-dev.ps1`, `docker-compose.test.yml`) : branche `dev` dans le conteneur `boucan-test` (port 3002, `BOUCAN_TEST_PORT`) + lien public temporaire séparé, sans toucher à la production |
+| scripts | Fonctions communes dans `scripts/lib.ps1` (Docker, git, santé, tunnel) |
+
 ## 2026-09-27 — contrat 2.1.0 · 21 mini-jeux du prototype OUAF WARE, nouveau fond, menu revu
 
 Protocole inchangé (2). Voir [ADR-0012](docs/adr/0012-nouveaux-mini-jeux.md).

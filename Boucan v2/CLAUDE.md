@@ -1,12 +1,20 @@
 # BOUCAN — notes pour les sessions Claude
 
-Jeu multijoueur façon WarioWare. Monorepo npm dans ce dossier (racine git : le dossier parent `Boucan-v2/`, branche `main`) : `shared/` (contrat Zod), `server/` (moteur + protocole), `sdk/` (client réseau, moteur local, bots), `client/` (le jeu). Claude est seul responsable de tout le projet (Astra n'est plus utilisé). Vue d'ensemble : `docs/ARCHITECTURE.md`.
+Jeu multijoueur façon WarioWare. Monorepo npm dans ce dossier (racine git : le dossier parent `Boucan-v2/`, voir « Git » plus bas) : `shared/` (contrat Zod), `server/` (moteur + protocole), `sdk/` (client réseau, moteur local, bots), `client/` (le jeu). Claude est seul responsable de tout le projet (Astra n'est plus utilisé). Vue d'ensemble : `docs/ARCHITECTURE.md`.
 
 ## Commandes
 
 - `npm run dev` → serveur :3001 + client http://localhost:5180 (`PORT=3002 BOUCAN_SERVER_PORT=3002 npm run dev` si 3001 est pris)
 - `npm test` · `npm run typecheck` · `npm run build` (doivent passer avant de rendre la main)
 - `npm run check:integration -- --url ws://127.0.0.1:<port>/ws [--full]` contre un serveur lancé
+
+## Git
+
+- Dépôt `origin` = https://github.com/nouteK/Boucan (compte GitHub de l'utilisateur : nouteK). La copie de travail est sur `dev`.
+- `main` = version en ligne. On n'y touche **que** quand l'utilisateur le demande (après avoir testé `dev`) : fusion de `dev` dans `main`, push, puis `Mettre en ligne.bat`.
+- `dev` = tous les commits, poussés sur `origin/dev` (CI GitHub : tests + build). Ne committer que ce qui passe `npm test` et `npm run build`.
+- L'utilisateur teste `dev` avec `Tester la version dev.bat` (http://localhost:3002 + lien public) ; `Mettre en ligne.bat` déploie `main`. Les deux construisent depuis la branche git, pas depuis le dossier.
+- Plusieurs sessions Claude peuvent travailler en même temps dans cette copie : ne committer que ses propres fichiers (`git commit -- <chemins>`), jamais `stash`, `reset --hard`, `checkout -- <fichier>` ou `clean` sur le travail d'une autre session. Pour un chantier isolé : `git worktree add` hors de OneDrive.
 
 ## Règles
 
