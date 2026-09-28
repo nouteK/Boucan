@@ -205,7 +205,7 @@ export default defineMicrogame({
             c.translate(q.x, q.y - h - 4);
             poly([[-r, r * 0.3], [-r, -r * 0.7], [-r / 2, -r * 0.2], [0, -r], [r / 2, -r * 0.2], [r, -r * 0.7], [r, r * 0.3]], '#ffd23c', 4);
             c.restore();
-            label(s.king, q.x, q.y - h - r * 2 - 8, Math.round(Math.min(30, q.s * 0.1 + 14)));
+            label(s.king, q.x, Math.max(24, q.y - h - r * 2 - 8), Math.round(Math.min(30, q.s * 0.1 + 14)));
           },
         });
         for (const cl of climbers) {
@@ -247,8 +247,8 @@ export default defineMicrogame({
         items.sort((a, b) => (cam.d > 0 ? b.z - a.z : a.z - b.z)).forEach((i) => i.draw());
         // Race to the top.
         const X0 = 1200;
-        const Y0 = 96;
-        const HH = 440;
+        const Y0 = 130;
+        const HH = 400;
         box(X0 - 14, Y0 - 10, 28, HH + 20, INK, 0, 14);
         c.fillStyle = '#5fc25a';
         c.fillRect(X0 - 8, Y0, 16, HH);
@@ -259,7 +259,7 @@ export default defineMicrogame({
         }
         if (!s.result) {
           const left = Math.max(0, Math.ceil((ctx.activeAt + ctx.info.durationMs - ctx.serverNow()) / 1000));
-          outlineText(`${left} s`, 1140, 50, 34, '#fff', 'right', 7);
+          outlineText(`${left} s`, 1130, 96, 34, '#fff', 'right', 7);
           if (t > 950 && t < 3200) outlineText(isKing() ? 'TU ES LE ROI : BOMBARDE-LES !' : 'GRIMPE ET ESQUIVE LES BOMBES !', 640, 150, 34, '#fff', 'center', 7);
           (isKing() ? kingPad : climberPad).draw();
         } else slam(s.result === 'king' ? 'VIVE LE ROI !' : 'DÉTRÔNÉ !', clock - resultAt, '#ffe04a', 640, 220, 90, 1000);

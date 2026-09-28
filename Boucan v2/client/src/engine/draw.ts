@@ -74,36 +74,6 @@ export const easeInCubic = (k: number) => k * k * k;
 export const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
 export const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 
-/** Diagonal animated stripes background. */
-export function stripes(col: string, t: number, speed = 1, alpha = 0.16): void {
-  const c = g();
-  c.fillStyle = col;
-  c.fillRect(0, 0, W, H);
-  c.save();
-  c.fillStyle = `rgba(255,255,255,${alpha})`;
-  c.translate(W / 2, H / 2);
-  c.rotate(-0.35);
-  const off = ((t * 0.05 * speed) % 140) - 140;
-  for (let x = -1100 + off; x < 1100; x += 140) c.fillRect(x, -900, 56, 1800);
-  c.restore();
-}
-
-/** Polka dots background (alternative pattern). */
-export function dots(col: string, dot: string, t: number): void {
-  const c = g();
-  c.fillStyle = col;
-  c.fillRect(0, 0, W, H);
-  c.fillStyle = dot;
-  const off = (t * 0.02) % 80;
-  for (let y = -80; y < H + 80; y += 80) {
-    for (let x = -80; x < W + 80; x += 80) {
-      c.beginPath();
-      c.arc(x + off + ((y / 80) % 2) * 40, y + off, 14, 0, Math.PI * 2);
-      c.fill();
-    }
-  }
-}
-
 export function radial(col: string, t: number, rays = 18): void {
   const c = g();
   c.fillStyle = col;
@@ -302,14 +272,15 @@ export function hintIcon(kind: string, x: number, y: number, t: number, s = 1): 
     c.restore();
     return;
   }
-  if (kind === 'alternate') {
-    // Two fingers pressing in turn, left then right.
-    const phase = Math.floor(t / 180) % 2;
+  if (kind === 'alternate' || kind === 'updown') {
+    // Two fingers pressing in turn: left / right, or duck (left) / jump (right).
+    const phase = Math.floor(t / (kind === 'updown' ? 320 : 180)) % 2;
     for (const side of [-1, 1] as const) {
       const down = (side < 0 ? phase === 0 : phase === 1) ? 12 : 0;
       box(side * 70 - 14, -64 + down, 28, 62, '#ffd9b3', 6, 14);
       box(side * 70 - 30, -8 + down, 60, 50, '#ffd9b3', 6, 16);
-      outlineText(side < 0 ? '◀' : '▶', side * 70, 80, 34, down ? '#ffe04a' : '#fff');
+      const label = kind === 'updown' ? (side < 0 ? '▼' : '▲') : side < 0 ? '◀' : '▶';
+      outlineText(label, side * 70, 80, 34, down ? '#ffe04a' : '#fff');
     }
     c.restore();
     return;

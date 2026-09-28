@@ -13,6 +13,23 @@ Protocole inchangé. Incident : Docker Desktop a redémarré, le tunnel rapide d
 | **correctif** | Scripts : le lien public affiché était parfois celui d'un démarrage précédent du tunnel (logs lus depuis le démarrage en cours seulement) ; `.env` : valeurs avec virgules / espaces lues en entier |
 | tests | + motifs d'origine, validation, WebSocket refusé / accepté derrière un motif |
 
+## 2026-09-28 — protocole 3 · les 32 jeux du prototype OUAF WARE v2, 4 mondes, niveaux sans boss
+
+**Cassant** (valeurs de `zone`) : `PROTOCOL_VERSION` 3, `CONTRACT_REVISION` 3.0.0. Voir [ADR-0013](docs/adr/0013-catalogue-ouaf-ware.md).
+
+| Module | Changement |
+| --- | --- |
+| `shared/contracts` | Catalogue = 32 micro-jeux (22 solos, 10 duels, 0 boss) : + `esquive`, `hautbas`, `rythme`, `fusee`, `laser`, `sauter`, `ping` ; − `stop`, `queue`, `devore`, `renverse`, `recette`, `efface`, `copie`, `avion`, `main`, `taille`, `gemmes`, `boss-recre`, `boss-cantine`, `boss-classe`, `course`, `cristal`, `boules`, `glace`, `noir`. `ZONES` = `foret` / `ville` / `neige` / `futur` (au lieu de `recre` / `cantine` / `classe`) ; nouvel indice de geste `updown` |
+| `server/match` | Un niveau se termine après `gamesPerLevel` micro-jeux quand aucun boss n'est activé (le boss reste pris en charge s'il y en a un) |
+| `server/minigames` | Duel `roi` refait (le roi bombarde la pente, les grimpeurs esquivent ; déplacements compensés en latence), nouveaux duels `sauter` (corde à calendrier déterministe, passages jugés 150 ms après) et `ping` (matchs à deux, raquette bornée en vitesse, frappes jugées à l'instant compensé) ; modules `course`, `cristal`, `boules`, `glace`, `noir` supprimés |
+| `client/microgames` | Jeux alignés sur le prototype v2 : `cours`, `saute`, `degage`, `plateau` (œufs), `puree` (boules de neige), `soupe` (fiole + drone), `combo` (PRÊT… GO !), `panier` (gymnase 3D), `skate` (route peinte), `roi` ; + 7 nouveaux ; chaque jeu dans le décor de son monde ; `pad.ts` (boutons tactiles multi-doigts / touches), `road.ts` (route vue de dos) ; accessoires œuf, fiole, drone |
+| `client/engine` | Entrées : plusieurs pointeurs (`id`), mode tactile (`isTouchMode`, `ctx.touch`) ; poses `ping*` ; icône de geste `updown` |
+| `client/match` | Intro de niveau et interludes posés sur l'image du monde (teinte par monde) ; « TOUS LES MONDES » en mélange ; salon : réglage MONDE |
+| `client/assets` | + `sprites/route`, `sprites/table-ping`, `sprites/chien-ping` (extraits du HTML) |
+| `client/dev` | `?preview=…&freeze=t` avance directement à l'instant `t` (captures fiables) |
+| nettoyage | Décors récré / cantine / classe dessinés, accessoires scolaires (plateau, purée, prof, bureau, feuille, gemmes, cristal, coffre), `stripes`, `dots`, `GAME.subtitle` supprimés ; anciennes sources archivées (`_archives/boucan-catalogue-44-jeux-2026-09-27.zip`) |
+| tests | Fumée de tous les solos (dont une passe en mode tactile), chaque duel de bout en bout (moitié en tactile), règles de `roi` / `sauter` / `ping`, niveaux sans boss + boss optionnel : 138 tests ; intégration réseau 20/20 |
+
 ## 2026-09-27 — dépôt GitHub, branches `main` / `dev`, version de test
 
 Jeu inchangé. Voir [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#branches--main-en-ligne-dev-à-tester).

@@ -15,4 +15,5 @@ Décisions structurantes, difficiles à reconstituer six mois plus tard. Une dé
 | [0009](0009-moteur-sans-io.md) | Moteur sans IO, exécutable dans le navigateur | accepté |
 | [0010](0010-vies-et-autorite-v2.md) | Partie façon WarioWare : vies, rythme, autorité solo (client) / duel (serveur) | accepté |
 | [0011](0011-client-unique-monorepo.md) | Un seul client dans le monorepo ; dérivés JSON Schema / fixtures supprimés | accepté |
-| [0012](0012-nouveaux-mini-jeux.md) | 21 mini-jeux repris du prototype OUAF WARE, réécrits dans l'architecture Boucan | accepté |
+| [0012](0012-nouveaux-mini-jeux.md) | 21 mini-jeux repris du prototype OUAF WARE, réécrits dans l'architecture Boucan | accepté (catalogue remplacé par 0013) |
+| [0013](0013-catalogue-ouaf-ware.md) | Catalogue = les 32 jeux du prototype OUAF WARE v2 ; 4 mondes au lieu des lieux école ; niveaux sans boss ; boutons tactiles | accepté |

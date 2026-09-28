@@ -97,7 +97,7 @@ export class MatchView {
     switch (s.match.phase) {
       case 'STAGE_INTRO':
         if (this.first(`intro:${s.match.matchId}`)) audio.sfx('fanfare');
-        drawStageIntro(s.match.zone, s.match.level, s.match.levels, players, phaseT);
+        drawStageIntro(s.match.zone, s.lobby.config.zone === 'mix', s.match.level, s.match.levels, players, phaseT);
         break;
       case 'INTERLUDE':
         this.drawInterlude(s, players, now);

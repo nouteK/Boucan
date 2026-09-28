@@ -5,14 +5,14 @@ import { box, burst, g, outlineText, radial, slam } from '../engine/draw';
 import { sceneBg } from '../microgames/backdrops';
 import type { RosterEntry } from './roster';
 
-/** Stage title card: the world slams in, players run onto the stage. */
-export function drawStageIntro(zone: ZoneId, level: number, levels: number, players: readonly RosterEntry[], t: number): void {
+/** Stage title card: the world (or « every world » in a mix) slams in, players run onto the stage. */
+export function drawStageIntro(zone: ZoneId, mix: boolean, level: number, levels: number, players: readonly RosterEntry[], t: number): void {
   const th = ZONE_THEMES[zone];
   sceneBg(zone, 560);
   const c = g();
   c.fillStyle = th.tint;
   c.fillRect(0, 0, 1280, 720);
-  slam(th.name, t, '#fff', 640, 190, 140);
+  slam(mix ? 'TOUS LES MONDES' : th.name, t, '#fff', 640, 190, 140);
   if (t > 450) slam(`NIVEAU ${level} / ${levels}`, t - 450, th.counter, 640, 330, 64, 900, 0.03);
   const n = players.length;
   const spacing = Math.min(160, 1180 / Math.max(1, n));

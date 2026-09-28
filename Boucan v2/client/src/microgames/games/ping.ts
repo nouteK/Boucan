@@ -322,7 +322,7 @@ export default defineMicrogame({
         const them = playerOf(m.ids[w.side === 0 ? 1 : 0]);
         const mySc = m.sc[w.side];
         const theirSc = m.sc[w.side === 0 ? 1 : 0];
-        outlineText(`${me?.isMe ? 'TOI' : (me?.nickname ?? 'BOMBE')}  ${mySc} - ${theirSc}  ${them?.nickname ?? 'BOMBE'}`, 640, 48, 40, '#fff', 'center', 7);
+        outlineText(`${me?.isMe ? 'TOI' : (me?.nickname ?? 'BOMBE')}  ${mySc} - ${theirSc}  ${them?.nickname ?? 'BOMBE'}`, 640, 96, 40, '#fff', 'center', 7);
         if (smashT < 500) outlineText('SMASH !', 640, 150, 44, '#ffe04a', 'center', 6);
         if (msg) outlineText(msg.text, 640, 230, 64, msg.col, 'center', 8);
         if (overAt >= 0) {

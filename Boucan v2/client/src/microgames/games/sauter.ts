@@ -192,12 +192,12 @@ export default defineMicrogame({
         }
         if (front) drawRope();
         // Turn counter and rope speed.
-        outlineText(`TOUR ${r.turn}`, 1180, 60, 34, '#fff', 'right', 7);
+        outlineText(`TOUR ${r.turn}`, 1180, 96, 34, '#fff', 'right', 7);
         const k = (PERIOD0 - r.p) / (PERIOD0 - MIN_PERIOD);
-        box(1000, 80, 190, 18, INK, 0, 9);
+        box(1000, 116, 190, 18, INK, 0, 9);
         c.fillStyle = k > 0.8 ? '#ff4a4a' : k > 0.4 ? '#ff9f1c' : '#2fd07a';
-        c.fillRect(1004, 84, 182 * k, 10);
-        outlineText('VITESSE', 1095, 118, 18, '#fff', 'center', 4);
+        c.fillRect(1004, 120, 182 * k, 10);
+        outlineText('VITESSE', 1095, 154, 18, '#fff', 'center', 4);
         if (s.winners) {
           const w = s.winners;
           const one = w.length === 1 ? ctx.players.find((pl) => pl.id === w[0]) : undefined;

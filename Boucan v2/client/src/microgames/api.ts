@@ -29,7 +29,7 @@ export interface MgContext {
   /** Deterministic RNG from the round seed: every player gets the same situation. */
   readonly rng: Rng;
   readonly seed: number;
-  /** 1 → 3: difficulty, rises after each boss. */
+  /** 1 → 3: difficulty, rises at the end of each level. */
   readonly level: number;
   readonly tempo: number;
   /** Playable duration in game ms. */

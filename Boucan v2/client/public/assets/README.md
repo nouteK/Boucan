@@ -42,6 +42,9 @@ Même format d'atlas. Utilisés par les micro-jeux via `drawSprite(id, animOuFra
 | `chien-boxe`, `chien-boxe-ko` | le chien en gants (anims `box`, `box_punch`, `box_guard`, `box_win`, `box_hurt`) |
 | `chien-rame` | le chien assis qui pagaie (`rest`, `stroke`, `tired`) |
 | `chien-corde` | le chien qui tire une corde (`c1`, `c2`) |
+| `chien-ping` | le chien raquette de ping-pong (`ping`, `ping_ready`, `ping_hit`) |
+| `route` | route en perspective (ESQUIVE LES BOMBES, RESTE SUR LA RAMPE) : une image, ancre en haut à gauche |
+| `table-ping` | table de ping-pong : une image, ancre en haut à gauche |
 
 ## Musique — `music`
 
@@ -53,8 +56,7 @@ Facultatifs : `"win": "sounds/win.mp3"`. Noms disponibles : `tap`, `go`, `win`, 
 
 ## Décors — `backgrounds`
 
-- Par lieu (`recre`, `cantine`, `classe`) : chemin d'une image 1280×720, affichée telle quelle à la place du décor dessiné.
-- Décors peints des micro-jeux : `{ "image": "backgrounds/foret.webp", "floor": 0.757 }`, où `floor` est la hauteur de la ligne de sol (0 = haut, 1 = bas). `sceneBg()` recadre l'image (sans la déformer) pour poser ce sol sur celui du jeu. Aujourd'hui : `foret`, `ville`, `neige`, `futur` (1440×810).
+- Les 4 mondes : `{ "image": "backgrounds/foret.webp", "floor": 0.757 }`, où `floor` est la hauteur de la ligne de sol (0 = haut, 1 = bas). `sceneBg()` recadre l'image (sans la déformer) pour poser ce sol sur celui du jeu. Clés : `foret`, `ville`, `neige`, `futur` (1440×810). Chaque image sert aux micro-jeux de ce monde, à l'intro de niveau et à la scène des interludes ; absente = aplat de couleurs.
 
 ## Fond des écrans — `menu/fond.webp`
 

@@ -17,14 +17,14 @@ Dépendances : `client → sdk → shared` ; `sdk/local → server` (moteur emba
 MENU ─créer/rejoindre─► SALON ─lancer─► STAGE_INTRO ─► INTERLUDE ─► MICROGAME ─► VERDICT ─┐
  ▲                        ▲                               ▲                                │
  │                        │                               └────── micro-jeu suivant ◄──────┘
- └── quitter ─────────────┴──── retour au salon ◄──── STAGE_RESULTS ◄── (1 survivant / dernier boss)
+ └── quitter ─────────────┴──── retour au salon ◄──── STAGE_RESULTS ◄── (1 survivant / dernier niveau)
 ```
 
 - **Menu** (DOM) : créer une partie, rejoindre par code, musique/sons. Rien d'autre.
-- **Salon** (DOM) : code + lien d'invitation, pseudo, personnage, joueurs (humains + bots serveur), réglages de l'hôte (lieu, vies, durée), prêt / lancer.
-- **Match** (Canvas 1280×720 letterboxé) : piloté par l'horloge serveur. Interlude façon WarioWare (compteur, « PLUS VITE ! », « BOSS ! »), zoom dans l'écran, micro-jeu de ~4 s, verdict, vies perdues, éliminations, classement final.
+- **Salon** (DOM) : code + lien d'invitation, pseudo, personnage, joueurs (humains + bots serveur), réglages de l'hôte (monde, vies, durée), prêt / lancer.
+- **Match** (Canvas 1280×720 letterboxé) : piloté par l'horloge serveur. Intro et interludes posés sur l'image du monde (forêt, ville, neige, futur) : compteur, « PLUS VITE ! », « NIVEAU 2 ! », « TOUS ENSEMBLE ! » ; zoom dans l'écran, micro-jeu de ~4 à 7 s en plein écran, verdict, vies perdues, éliminations, classement final.
 
-Règles (moteur, `server/src/engine/match/match.ts`) : chaque niveau = `gamesPerLevel` micro-jeux puis un boss. Accélération tous les `speedUpEvery` micro-jeux ; un duel tous les `duelEvery` (≥ 2 joueurs en vie). Échec = −1 vie, boss réussi = +1 vie (plafond `GAME_RULES.maxLives`). 0 vie = éliminé : le joueur continue en « fantôme » sans compter. Fin : un seul survivant (multijoueur), le joueur solo éliminé, ou le dernier boss passé. Tous les réglages sont dans `server/src/config/game-config.ts` et `shared/src/contracts/rules.ts`.
+Règles (moteur, `server/src/engine/match/match.ts`) : chaque niveau = `gamesPerLevel` micro-jeux (puis un boss si le catalogue en a un — ce n'est pas le cas aujourd'hui, [ADR-0013](adr/0013-catalogue-ouaf-ware.md)). Micro-jeux tirés dans le monde choisi (ou dans tous, « Mélange »). Accélération tous les `speedUpEvery` micro-jeux ; un duel tous les `duelEvery` (≥ 2 joueurs en vie). Échec = −1 vie, boss réussi = +1 vie (plafond `GAME_RULES.maxLives`). 0 vie = éliminé : le joueur continue en « fantôme » sans compter. Fin : un seul survivant (multijoueur), le joueur solo éliminé, ou le dernier niveau terminé. Tous les réglages sont dans `server/src/config/game-config.ts` et `shared/src/contracts/rules.ts`.
 
 ## Serveur
 
@@ -42,7 +42,7 @@ Le moteur reçoit `now` en paramètre et émet vers une interface de sortie : il
 
 ### Autorité
 
-- **Solo / boss** : chaque client joue sa copie (même graine = même situation) et envoie son résultat (`minigame.report`) dès qu'il est décidé. Le serveur accepte le rapport pendant la fenêtre de jeu (+ `reportGraceMs`), simule les bots, et compte « dnf » pour les absents.
+- **Solo (et boss)** : chaque client joue sa copie (même graine = même situation) et envoie son résultat (`minigame.report`) dès qu'il est décidé. Le serveur accepte le rapport pendant la fenêtre de jeu (+ `reportGraceMs`), simule les bots, et compte « dnf » pour les absents.
 - **Duel** : tous les joueurs en vie dans une arène commune simulée par le serveur (`server/src/engine/minigames/modules/`). Les clients envoient des intentions (`minigame.input`), le serveur diffuse l'état (`minigame.state`) et les événements (`minigame.event`) et décide des issues.
 
 Voir [ADR-0010](adr/0010-vies-et-autorite-v2.md).
@@ -60,9 +60,9 @@ Jeton de session en `sessionStorage` : un rechargement de page reprend la place 
 | Dossier | Rôle |
 | --- | --- |
 | `app/` | `App` (orchestration menu → salon → match, connexion, session, musique), `menu.ts` (menu principal), `logo.ts` (titre BOUCAN vectoriel), `lobby.ts` (salon), `audio-toggles.ts`, `room-code.ts` (validation du code + messages d'erreur joueurs), `dom.ts` (helpers DOM et SVG, attente de la police, confirmation en deux temps, toast, profil local), `portraits.ts`, `ui.css` |
-| `engine/` | `screen` (canvas logique 1280×720 letterboxé, HiDPI), `draw` (primitives dessinées), `input` (pointeur / flèches / ZQSD → entrées logiques), `assets` (manifest, atlas, poses, décors, fallback dessiné), `audio` (sons synthétisés + pistes, préférences) |
-| `match/` | `MatchView` (interlude, zoom, micro-jeu, verdict pilotés par l'horloge serveur ; libère le micro-jeu précédent via `dispose`), `interlude`, `ceremonies` (intro, résultats), `hud` (mèche, consigne, puces), `roster` |
-| `microgames/` | un fichier par micro-jeu dans `games/`, registre `index.ts`, API `api.ts`, décors (`backdrops.ts`, dont `sceneBg`), accessoires (`props.ts`), helpers (`common.ts`, `duel-common.ts`) — voir [MICROGAMES.md](MICROGAMES.md) |
+| `engine/` | `screen` (canvas logique 1280×720 letterboxé, HiDPI), `draw` (primitives dessinées), `input` (pointeurs multiples / flèches / ZQSD → entrées logiques, mode tactile), `assets` (manifest, atlas, poses, décors des mondes, fallback dessiné), `audio` (sons synthétisés + pistes, préférences) |
+| `match/` | `MatchView` (interlude, zoom, micro-jeu, verdict pilotés par l'horloge serveur ; libère le micro-jeu précédent via `dispose`), `interlude` (scène sur l'image du monde), `ceremonies` (intro, résultats), `hud` (mèche, consigne, puces), `roster` |
+| `microgames/` | un fichier par micro-jeu dans `games/`, registre `index.ts`, API `api.ts`, décors des mondes (`backdrops.ts` : `sceneBg`), route vue de dos (`road.ts`), boutons tactiles / touches (`pad.ts`), accessoires (`props.ts`), helpers (`common.ts`, `duel-common.ts`) — voir [MICROGAMES.md](MICROGAMES.md) |
 | `dev/` | `preview.ts` : `?preview=<id>`, un micro-jeu seul en boucle (dev uniquement, absent du build) |
 
 ### Menu principal
@@ -85,6 +85,6 @@ Tout visuel ou son passe par `client/public/assets/manifest.json` (voir [client/
 
 - `npm run dev` : serveur (tsx watch, :3001) + client (Vite, :5180, proxy `/ws` et `/health`).
 - `?offline` : partie solo avec bots, moteur dans la page (aucun serveur) ; `&games=a,b`, `&duelEvery=N`, `&bots=N` pour tester.
-- `?preview=<id>` (dev) : un micro-jeu seul en boucle, duels compris (module serveur dans la page) ; `&freeze=ms` fige l'image.
+- `?preview=<id>` (dev) : un micro-jeu seul en boucle, duels compris (module serveur dans la page) ; `&freeze=ms` avance directement à cet instant et fige l'image.
 - `?server=ws://hôte:port/ws` : client branché sur un autre serveur.
 - Production : `npm run build && npm start` (un seul port) — voir [DEPLOYMENT.md](DEPLOYMENT.md).

@@ -1,4 +1,4 @@
-# Protocole réseau (v2)
+# Protocole réseau (v3)
 
 Source de vérité : les schémas Zod de `shared/src/contracts/` (`messages.ts`, `model.ts`, `phases.ts`, `errors.ts`). Ce document les résume ; en cas de doute, le code fait foi. Le client du jeu passe par le SDK (`BoucanClient`, `sdk/src/client.ts`), qui implémente tout ce qui suit.
 
@@ -41,7 +41,7 @@ Un message avec `rid` reçoit exactement une `reply`. Sans `rid`, un succès est
 | `minigame.report` | `roundId`, `result { outcome, score? }` | `MICROGAME` (solo/boss) | — |
 | `minigame.input` | `roundId`, `input`, `at?`, `seq?` | `MICROGAME` (duel) | — |
 
-`MatchConfig` : `zone` = `mix` \| `recre` \| `cantine` \| `classe` ; `lives` = 3 \| 4 \| 5 ; `length` = `court` \| `normal` \| `long` (1, 2 ou 3 niveaux).
+`MatchConfig` : `zone` (le monde) = `mix` \| `foret` \| `ville` \| `neige` \| `futur` ; `lives` = 3 \| 4 \| 5 ; `length` = `court` \| `normal` \| `long` (1, 2 ou 3 niveaux).
 
 Règles de validation communes (`GAME_RULES`) : 1 à 8 joueurs ; pseudo 2–16 caractères (graphèmes), filtre de mots ; code de room 4 caractères dans `BCDFGHJKMNPQRTVWXZ234679` (pas de voyelles ni de caractères ambigus).
 
