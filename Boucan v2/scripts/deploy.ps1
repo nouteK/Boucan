@@ -61,6 +61,26 @@ if ($Rollback) {
   Build-FromBranch $docker $git $source $branch 'boucan:latest'
 }
 
+# ── Lien public : ALLOWED_ORIGINS doit l'accepter ────────────────────────────
+# Le tunnel rapide change d'adresse à chaque redémarrage (Docker Desktop relancé…) : un
+# ancien lien exact dans ALLOWED_ORIGINS empêcherait de jouer (la page s'affiche, le
+# WebSocket est refusé). Seuls des liens exacts trycloudflare sont remplacés ; un domaine
+# ou un motif (https://*.trycloudflare.com) n'est jamais modifié.
+# Tunnel de production (projet compose « boucan ») : pas celui de la version de test.
+$tunnel = & $docker ps --filter 'label=com.docker.compose.project=boucan' --filter 'label=com.docker.compose.service=tunnel' --format '{{.Names}}' | Select-Object -First 1
+$publicUrl = $null
+if ($tunnel) { $publicUrl = Get-TunnelUrl $docker $tunnel 20 }
+$allowed = Get-EnvValue $root 'ALLOWED_ORIGINS' ''
+$originWarning = $false
+if ($publicUrl -and -not (Test-OriginAllowed $allowed $publicUrl)) {
+  if (Test-OnlyQuickTunnelOrigins $allowed) {
+    Set-EnvValue $root 'ALLOWED_ORIGINS' $publicUrl
+    Say "ALLOWED_ORIGINS (.env) mis à jour avec le lien actuel du tunnel : $publicUrl" 'DarkGray'
+  } else {
+    $originWarning = $true
+  }
+}
+
 # ── Remplacement du conteneur (le tunnel n'est pas touché) ───────────────────
 Say 'Redémarrage du jeu…' 'Cyan'
 & $docker compose up -d --no-deps --no-build --force-recreate boucan
@@ -83,11 +103,10 @@ foreach ($p in $others) {
   Say "  Attention : le programme « $($p.ProcessName) » (PID $($p.Id)) occupe aussi le port $port sur cet ordinateur." 'Yellow'
   Say "  En local, http://localhost:$port peut afficher ce programme au lieu de la version Docker (le lien public n'est pas concerné)." 'Yellow'
 }
-# Tunnel de production (projet compose « boucan ») : pas celui de la version de test.
-$tunnel = & $docker ps --filter 'label=com.docker.compose.project=boucan' --filter 'label=com.docker.compose.service=tunnel' --format '{{.Names}}' | Select-Object -First 1
-if ($tunnel) {
-  $url = Get-TunnelUrl $docker $tunnel
-  if ($url) { Say "  Public : $url" 'Green' }
+if ($publicUrl) { Say "  Public : $publicUrl" 'Green' }
+if ($originWarning) {
+  Say "  Attention : ALLOWED_ORIGINS (.env) n'accepte pas ce lien : la page s'affiche mais on ne peut pas jouer." 'Yellow'
+  Say "  Ajouter ce lien à ALLOWED_ORIGINS dans .env, puis relancer « Mettre en ligne.bat »." 'Yellow'
 }
 Say "  Revenir à la version d'avant : « Revenir a la version precedente.bat »" 'DarkGray'
 exit 0

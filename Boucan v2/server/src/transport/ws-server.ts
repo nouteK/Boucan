@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { WebSocket, WebSocketServer } from 'ws';
 import { PROTOCOL_VERSION } from '@boucan/shared';
 import type { ServerSettings } from '../config/env';
+import { originMatcher } from '../config/origins';
 import type { Logger } from '../engine/logger';
 import type { MiniGameModule } from '../engine/minigames/api';
 import { DUEL_MODULES } from '../engine/minigames/catalog';
@@ -101,10 +102,7 @@ export function createBoucanServer(options: BoucanServerOptions): BoucanServer {
     json(404, { error: 'not found', hint: `WebSocket endpoint is ${WS_PATH}; see /health and /api/info` });
   }
 
-  function originAllowed(origin: string | undefined): boolean {
-    if (settings.allowedOrigins === null) return true;
-    return origin !== undefined && settings.allowedOrigins.includes(origin);
-  }
+  const originAllowed = originMatcher(settings.allowedOrigins);
 
   const wss = new WebSocketServer({ noServer: true, maxPayload: config.network.maxMessageBytes });
 

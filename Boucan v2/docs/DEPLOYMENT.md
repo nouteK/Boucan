@@ -60,6 +60,9 @@ Transmettre les en-têtes d'upgrade WebSocket sur `/ws` et tout le reste tel que
 | --- | --- | --- |
 | `TRUST_PROXY` | `true` | sinon tous les joueurs partagent l'IP du proxy et la limite `MAX_CONNECTIONS_PER_IP` (32) devient une limite **globale** |
 | `ALLOWED_ORIGINS` | `https://jeu.exemple.fr` | n'accepter le WebSocket que depuis la page du jeu |
+| `ALLOWED_ORIGINS` (tunnel rapide) | `https://*.trycloudflare.com` | l'adresse d'un tunnel rapide **change à chaque redémarrage** (Docker Desktop relancé, PC redémarré) : avec l'adresse exacte, la page s'afficherait mais le WebSocket serait refusé. `*` remplace un seul élément du nom (pas `a.b.trycloudflare.com`) |
+
+Le motif `*` est compris par le serveur à partir de la version du 28/09/2026 (branche `dev`, puis `main` après fusion). Avec une adresse exacte de tunnel rapide dans `.env`, `Mettre en ligne.bat` la remplace automatiquement par l'adresse actuelle du tunnel avant de relancer le jeu ; un domaine ou un motif n'est jamais modifié.
 
 Avec `TRUST_PROXY=true`, n'exposer le port 3001 **que** derrière le proxy (sinon un client peut falsifier `X-Forwarded-For`).
 

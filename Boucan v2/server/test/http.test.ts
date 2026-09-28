@@ -3,7 +3,9 @@ import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { WebSocket } from 'ws';
 import { loadSettings } from '../src/config/env';
+import { originMatcher } from '../src/config/origins';
 import { silentLogger } from '../src/engine/logger';
 import { parseRange } from '../src/transport/static';
 import { createBoucanServer, type BoucanServer } from '../src/transport/ws-server';
@@ -104,10 +106,57 @@ describe('settings', () => {
     expect(s.trustProxy).toBe(false);
   });
 
+  it('validates ALLOWED_ORIGINS entries', () => {
+    expect(loadSettings({ ALLOWED_ORIGINS: 'https://jeu.fr, https://*.trycloudflare.com, http://localhost:5180' }).allowedOrigins)
+      .toEqual(['https://jeu.fr', 'https://*.trycloudflare.com', 'http://localhost:5180']);
+    for (const bad of ['*', 'jeu.fr', 'https://jeu.fr/page', 'https://*jeu.fr', 'ftp://jeu.fr']) {
+      expect(() => loadSettings({ ALLOWED_ORIGINS: bad }), bad).toThrow(/ALLOWED_ORIGINS/);
+    }
+  });
+
   it('reads TRUST_PROXY', () => {
     expect(loadSettings({ TRUST_PROXY: 'true' }).trustProxy).toBe(true);
     expect(loadSettings({ TRUST_PROXY: '1' }).trustProxy).toBe(true);
     expect(loadSettings({ TRUST_PROXY: 'false' }).trustProxy).toBe(false);
+  });
+});
+
+describe('allowed origins', () => {
+  it('matches exact origins and one-label patterns', () => {
+    const allowed = originMatcher(['https://jeu.fr/', 'https://*.trycloudflare.com']);
+    expect(allowed('https://jeu.fr')).toBe(true);
+    expect(allowed('HTTPS://JEU.FR')).toBe(true);
+    expect(allowed('https://send-mhz-identifies-sink.trycloudflare.com')).toBe(true);
+    expect(allowed('https://a.b.trycloudflare.com')).toBe(false);
+    expect(allowed('https://trycloudflare.com')).toBe(false);
+    expect(allowed('https://evil.com/.trycloudflare.com')).toBe(false);
+    expect(allowed('https://x.trycloudflare.com.evil.com')).toBe(false);
+    expect(allowed('http://x.trycloudflare.com')).toBe(false);
+    expect(allowed('https://jeu.fr:8443')).toBe(false);
+    expect(allowed(undefined)).toBe(false);
+    expect(originMatcher(null)(undefined)).toBe(true);
+  });
+
+  it('refuses the WebSocket from other pages (tunnel pattern)', async () => {
+    const settings = loadSettings({ NODE_ENV: 'test', PORT: '0', HOST: '127.0.0.1', ALLOWED_ORIGINS: 'https://*.trycloudflare.com' });
+    const guarded = createBoucanServer({ settings, logger: silentLogger });
+    const { url } = await guarded.listen();
+    const open = (origin: string) =>
+      new Promise<number>((resolve) => {
+        const ws = new WebSocket(url, { origin });
+        ws.on('open', () => {
+          ws.close();
+          resolve(101);
+        });
+        ws.on('unexpected-response', (_req, res) => resolve(res.statusCode ?? 0));
+        ws.on('error', () => undefined);
+      });
+    try {
+      expect(await open('https://new-random-name.trycloudflare.com')).toBe(101);
+      expect(await open('https://evil.example.com')).toBe(403);
+    } finally {
+      await guarded.close();
+    }
   });
 });
 

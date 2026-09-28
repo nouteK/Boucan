@@ -37,13 +37,50 @@ function Find-Git {
   return $git
 }
 
-# Valeur d'une variable du .env du dossier (ou $default).
+# Valeur d'une variable du .env du dossier (ou $default si absente ou vide).
 function Get-EnvValue($root, $name, $default) {
   if (Test-Path "$root\.env") {
-    $line = Get-Content "$root\.env" | Where-Object { $_ -match "^\s*$name\s*=\s*(\S+)" } | Select-Object -First 1
-    if ($line -and $line -match '=\s*(\S+)\s*$') { return $Matches[1] }
+    $line = Get-Content "$root\.env" | Where-Object { $_ -match "^\s*$name\s*=" } | Select-Object -First 1
+    if ($line -and $line -match '^[^=]*=\s*(.*?)\s*$' -and $Matches[1]) { return $Matches[1] }
   }
   return $default
+}
+
+# Écrit NAME=value dans le .env du dossier (remplace la ligne, ou l'ajoute). UTF-8 sans BOM.
+function Set-EnvValue($root, $name, $value) {
+  $path = "$root\.env"
+  $lines = @()
+  if (Test-Path $path) { $lines = @(Get-Content $path) }
+  $found = $false
+  $lines = @($lines | ForEach-Object {
+      if (-not $found -and $_ -match "^\s*$name\s*=") { $found = $true; "$name=$value" } else { $_ }
+    })
+  if (-not $found) { $lines += "$name=$value" }
+  [System.IO.File]::WriteAllLines($path, [string[]]$lines, (New-Object System.Text.UTF8Encoding $false))
+}
+
+# Une page servie depuis $url peut-elle ouvrir le WebSocket ? Même règle que le serveur
+# (server/src/config/origins.ts) : ALLOWED_ORIGINS vide = tout ; « * » = un label du nom.
+function Test-OriginAllowed($allowed, $url) {
+  if (-not $allowed) { return $true }
+  foreach ($entry in $allowed.Split(',')) {
+    $e = $entry.Trim().TrimEnd('/').ToLower()
+    if (-not $e) { continue }
+    $regex = '^' + ((($e -split '\*') | ForEach-Object { [regex]::Escape($_) }) -join '[a-z0-9-]+') + '$'
+    if ($url.ToLower() -match $regex) { return $true }
+  }
+  return $false
+}
+
+# ALLOWED_ORIGINS ne contient que des liens exacts de tunnel rapide (qui changent à chaque
+# redémarrage du tunnel) : on peut le remplacer sans risque par le lien actuel.
+function Test-OnlyQuickTunnelOrigins($allowed) {
+  if (-not $allowed) { return $false }
+  foreach ($entry in $allowed.Split(',')) {
+    $e = $entry.Trim().TrimEnd('/')
+    if ($e -and $e -notmatch '^https://[a-z0-9-]+\.trycloudflare\.com$') { return $false }
+  }
+  return $true
 }
 
 # Dernier commit d'une branche : la branche locale, ou celle de GitHub si elle est
@@ -127,10 +164,14 @@ function Wait-Health($docker, $container, $seconds = 40) {
   return $null
 }
 
-# Adresse publique https://….trycloudflare.com affichée par un conteneur tunnel.
+# Adresse publique https://….trycloudflare.com affichée par un conteneur tunnel. Seuls les
+# logs du démarrage en cours comptent : un démarrage précédent affichait une autre adresse.
 function Get-TunnelUrl($docker, $container, $seconds = 0) {
+  $started = (& $docker inspect -f '{{.State.StartedAt}}' $container 2>$null | Out-String).Trim()
+  $since = @()
+  if ($LASTEXITCODE -eq 0 -and $started) { $since = @('--since', $started) }
   for ($i = 0; $i -le $seconds; $i++) {
-    $url = & $docker logs $container 2>&1 | Select-String -Pattern 'https://[a-z0-9-]+\.trycloudflare\.com' -AllMatches |
+    $url = & $docker logs @since $container 2>&1 | Select-String -Pattern 'https://[a-z0-9-]+\.trycloudflare\.com' -AllMatches |
       ForEach-Object { $_.Matches } | Select-Object -Last 1
     if ($url) { return $url.Value }
     if ($i -lt $seconds) { Start-Sleep -Seconds 1 }

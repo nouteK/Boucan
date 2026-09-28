@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { LogLevel } from '../engine/logger';
 import type { LogFormat } from '../logging/console-logger';
 import { resolveGameConfig, type GameConfig } from './game-config';
+import { isValidOriginEntry } from './origins';
 
 /**
  * Environment variables → validated runtime settings. The only place that
@@ -25,7 +26,16 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().min(0).max(65535).default(3001),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'silent']).optional(),
   LOG_FORMAT: z.enum(['pretty', 'json']).optional(),
-  ALLOWED_ORIGINS: csv,
+  ALLOWED_ORIGINS: csv.superRefine((origins, ctx) => {
+    for (const origin of origins ?? []) {
+      if (!isValidOriginEntry(origin)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `"${origin}" is not an origin (scheme://host[:port], no path; "*" = one hostname label)`,
+        });
+      }
+    }
+  }),
   BOUCAN_MICROGAMES: csv,
   /** @deprecated alias of BOUCAN_MICROGAMES */
   BOUCAN_MINIGAMES: csv,
@@ -46,7 +56,7 @@ export interface ServerSettings {
   port: number;
   logLevel: LogLevel | 'silent';
   logFormat: LogFormat;
-  /** null = every origin accepted. */
+  /** null = every origin accepted. Entries may be patterns (see origins.ts). */
   allowedOrigins: string[] | null;
   /** Built client directory to serve (default ../client/dist). */
   clientDir: string | null;

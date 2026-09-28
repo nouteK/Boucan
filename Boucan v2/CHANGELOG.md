@@ -2,6 +2,17 @@
 
 Versions : `PROTOCOL_VERSION` (cassant) / `CONTRACT_REVISION` (compatible) / version serveur. Plus récent en haut.
 
+## 2026-09-28 — `ALLOWED_ORIGINS` avec motifs, tunnel qui change d'adresse
+
+Protocole inchangé. Incident : Docker Desktop a redémarré, le tunnel rapide de production a pris une nouvelle adresse, et `ALLOWED_ORIGINS` (adresse exacte de l'ancien tunnel) refusait le WebSocket de la nouvelle : la page s'affichait mais on ne pouvait plus jouer.
+
+| Module | Changement |
+| --- | --- |
+| `server/config` | `ALLOWED_ORIGINS` accepte des motifs où `*` remplace un élément du nom d'hôte (`https://*.trycloudflare.com`) ; entrées validées au démarrage (schéma://hôte[:port], sans chemin) ; comparaison insensible à la casse, `/` final ignoré (`origins.ts`) |
+| déploiement | `Mettre en ligne.bat` remplace automatiquement, dans `.env`, une adresse exacte de tunnel rapide périmée par l'adresse actuelle (jamais un domaine ni un motif) et prévient si le lien public ne peut pas jouer |
+| **correctif** | Scripts : le lien public affiché était parfois celui d'un démarrage précédent du tunnel (logs lus depuis le démarrage en cours seulement) ; `.env` : valeurs avec virgules / espaces lues en entier |
+| tests | + motifs d'origine, validation, WebSocket refusé / accepté derrière un motif |
+
 ## 2026-09-27 — dépôt GitHub, branches `main` / `dev`, version de test
 
 Jeu inchangé. Voir [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#branches--main-en-ligne-dev-à-tester).
