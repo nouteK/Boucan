@@ -1,0 +1,19 @@
+{
+ "frames": {
+  "table": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 1536,
+    "h": 1024
+   },
+   "anchor": {
+    "x": 0,
+    "y": 0
+   }
+  }
+ },
+ "meta": {
+  "note": "Table de ping-pong vue de face. Ancre = coin haut gauche."
+ }
+}

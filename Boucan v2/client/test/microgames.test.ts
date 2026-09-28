@@ -10,14 +10,15 @@ import { fakeContext, harness, randomInput } from './support';
  * crashes, NaN-free outcome logic and microgames that never decide.
  */
 
-describe('every solo / boss microgame plays through without crashing', () => {
+describe('every solo microgame plays through without crashing', () => {
   setContext(fakeContext());
   const solos = MICROGAME_DEFS.filter((d) => microgameInfo(d.id)?.kind !== 'duel');
   for (const def of solos) {
     it(def.id, () => {
       for (const level of [1, 2, 3]) {
         for (const seed of [1, 42, 777]) {
-          const h = harness(def.id, seed + level, level);
+          // The last seed as on a phone (on-screen buttons).
+          const h = harness(def.id, seed + level, level, undefined, seed === 777);
           const r = createRng(seed * 31 + level);
           const dt = 16;
           const end = h.ctx.duration + 800;

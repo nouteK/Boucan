@@ -1,114 +1,90 @@
-import { box, g, INK, outlineText } from '../../engine/draw';
+import { ellipse, g, INK, outlineText } from '../../engine/draw';
 import { defineMicrogame } from '../api';
-import { cantineBg } from '../backdrops';
-import { byLevel, GY, hero } from '../common';
-import { splat } from '../props';
+import { sceneBg } from '../backdrops';
+import { byLevel, GY, hero, isPress } from '../common';
+import { drone, potion } from '../props';
 
-/** VERSE LA SOUPE ! — the ladle swings above: tap when it is right over your bowl. */
+/** REMPLIS LA FIOLE ! — a drone sweeps left and right: tap to drop its potion when it is right above your flask. */
+const X = 430;
+const BX = X + 80;
+const BY = GY - 118;
+const DRONE_Y = 150;
+const POUR_MS = 350;
+const LIQUID = '#35e0ff';
+
 export default defineMicrogame({
   id: 'soupe',
-  verb: 'VERSE LA SOUPE !',
+  verb: 'REMPLIS LA FIOLE !',
   create(ctx) {
     const me = hero(ctx, 'hold');
-    const X = 430;
-    const bx = X + 80;
-    const by = GY - 118;
-    const ph = ctx.rng.range(0, 6.28);
-    const sp = byLevel(ctx, 0.0026, 0.0033, 0.004) * ctx.rng.range(0.9, 1.1);
-    const tolerance = byLevel(ctx, 70, 55, 45);
+    const phase = ctx.rng.range(0, Math.PI * 2);
+    const speed = ctx.rng.range(0.0017, 0.0023) * byLevel(ctx, 1, 1.2, 1.4);
+    const tolerance = byLevel(ctx, 105, 90, 75);
     let clock = 0;
     let pour: { x: number; t: number } | null = null;
     let result: 'win' | 'lose' | null = null;
-    const lx = () => 700 + 380 * Math.sin(ph + clock * sp);
+    const lx = () => 700 + 380 * Math.sin(phase + clock * speed);
     return {
       input(e) {
-        if (e.type !== 'down' || pour) return;
+        if (!isPress(e) || pour) return;
         pour = { x: lx(), t: 0 };
         ctx.sfx('whoosh');
       },
       update(dt, t) {
         clock = t;
         me.update(dt);
-        if (!pour) return;
-        pour.t += dt;
-        if (pour.t >= 350 && !result) {
-          result = Math.abs(pour.x - bx) < tolerance ? 'win' : 'lose';
-          if (result === 'win') {
-            me.force('catch');
-            ctx.sfx('pop');
-            ctx.win();
-          } else {
-            me.force('hurt');
-            ctx.shake(200);
-            ctx.lose();
-          }
+        if (!pour || result || (pour.t += dt) < POUR_MS) return;
+        result = Math.abs(pour.x - BX) < tolerance ? 'win' : 'lose';
+        if (result === 'win') {
+          me.force('catch');
+          ctx.sfx('pop');
+          ctx.win();
+        } else {
+          me.force('hurt');
+          ctx.sfx('splash');
+          ctx.shake(200);
+          ctx.lose();
         }
       },
+      timeout: () => (result === 'win' ? 'success' : 'failure'),
       draw(t) {
-        cantineBg(t, GY);
-        box(-10, GY - 240, 1300, 26, '#c9d3dc', 7);
+        sceneBg('futur', GY);
         me.draw(X, GY);
-        const c = g();
-        c.save();
-        c.translate(bx + 8, by - 2);
-        c.fillStyle = '#fff';
-        c.strokeStyle = INK;
-        c.lineWidth = 6;
-        c.beginPath();
-        c.ellipse(0, 0, 56, 34, 0, 0, Math.PI);
-        c.fill();
-        c.stroke();
-        c.fillStyle = result === 'win' ? '#f08a2a' : '#fff';
-        c.beginPath();
-        c.ellipse(0, 0, 52, 10, 0, 0, Math.PI * 2);
-        c.fill();
-        c.stroke();
-        c.restore();
+        potion(BX + 8, BY + 20, 1.1, result === 'win' ? 0.95 : 0, LIQUID);
         const x = pour ? pour.x : lx();
-        c.strokeStyle = '#8e99a4';
-        c.lineWidth = 16;
-        c.beginPath();
-        c.moveTo(x + 60, -20);
-        c.lineTo(x + 10, 150);
-        c.stroke();
-        c.save();
-        c.translate(x, 190);
-        c.rotate(pour ? -0.6 : 0);
-        c.fillStyle = '#8e99a4';
-        c.strokeStyle = INK;
-        c.lineWidth = 6;
-        c.beginPath();
-        c.arc(0, 0, 48, 0, Math.PI);
-        c.closePath();
-        c.fill();
-        c.stroke();
+        drone(x, DRONE_Y, t, pour ? 0 : Math.cos(phase + clock * speed) * 0.15, 1.25);
+        const c = g();
         if (!pour) {
-          c.fillStyle = '#f08a2a';
+          c.fillStyle = LIQUID;
+          c.strokeStyle = INK;
+          c.lineWidth = 5;
           c.beginPath();
-          c.ellipse(0, 2, 44, 10, 0, 0, Math.PI * 2);
+          c.moveTo(x, DRONE_Y + 34);
+          c.quadraticCurveTo(x + 18, DRONE_Y + 62, x, DRONE_Y + 70);
+          c.quadraticCurveTo(x - 18, DRONE_Y + 62, x, DRONE_Y + 34);
           c.fill();
-        }
-        c.restore();
-        if (pour && pour.t < 360) {
-          const y2 = 210 + Math.min(1, pour.t / 350) * (by - 210);
-          c.strokeStyle = '#f08a2a';
-          c.lineWidth = 18;
+          c.stroke();
+        } else if (pour.t < POUR_MS + 10) {
+          const y2 = DRONE_Y + 40 + Math.min(1, pour.t / POUR_MS) * (BY - 60 - DRONE_Y - 40);
+          c.strokeStyle = LIQUID;
+          c.lineWidth = 16;
           c.lineCap = 'round';
           c.beginPath();
-          c.moveTo(x - 30, 210);
-          c.lineTo(pour.x - 30, y2);
+          c.moveTo(pour.x, DRONE_Y + 40);
+          c.lineTo(pour.x, y2);
           c.stroke();
         }
         if (result === 'lose' && pour) {
-          splat(pour.x - 30, GY - 4, 1, '#f08a2a');
-          outlineText('À CÔTÉ !', pour.x, GY - 330, 56, '#fff');
+          ellipse(pour.x, GY - 6, 70, 14, LIQUID, 5);
+          outlineText('À CÔTÉ !', pour.x, GY - 330, 50, '#fff');
         }
-        c.strokeStyle = 'rgba(255,255,255,.7)';
+        // Where the flask is.
+        c.strokeStyle = 'rgba(255,255,255,.6)';
         c.lineWidth = 4;
         c.setLineDash([10, 12]);
         c.beginPath();
-        c.moveTo(bx, 260);
-        c.lineTo(bx, by - 40);
+        c.moveTo(BX + 8, DRONE_Y + 90);
+        c.lineTo(BX + 8, BY - 110);
         c.stroke();
         c.setLineDash([]);
       },

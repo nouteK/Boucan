@@ -1,6 +1,7 @@
 import type { TypedPayload } from '@boucan/shared';
-import { g, outlineText, slam, stripes } from '../../engine/draw';
+import { outlineText, slam } from '../../engine/draw';
 import { defineMicrogame } from '../api';
+import { sceneBg } from '../backdrops';
 import { arenaHeight, fighters, nameTag } from '../duel-common';
 import { bomb, boom } from '../props';
 
@@ -54,10 +55,7 @@ export default defineMicrogame({
         fs.forEach((f) => f.actor.update(dt));
       },
       draw(t) {
-        stripes('#ff8a3d', t, 1.5);
-        const c = g();
-        c.fillStyle = '#161616';
-        c.fillRect(0, GY, 1280, 720 - GY);
+        sceneBg('foret', GY);
         for (const f of fs) {
           f.actor.draw(f.x, GY, h, { flip: f.x > 640 });
           nameTag(f, GY - h - 24);

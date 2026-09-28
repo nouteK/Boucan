@@ -3,44 +3,54 @@ import type { Screen } from './screen';
 /**
  * Unified input, in logical coordinates:
  *   down / up : touch, click, or Space / Enter (x = null for keys)
- *   move      : pointer position (pressed = button held)
+ *   move      : pointer position (pressed = that pointer is down)
  *   key       : arrows / ZQSD (repeat = held key auto-repeat: ignore it when mashing)
  *   keyup     : that key released (hold mechanics)
+ * Pointer events carry the pointer `id`: several fingers can be down at once
+ * (on-screen buttons, see microgames/pad.ts); keys have no id.
  * Every microgame is playable with one finger OR the keyboard.
  */
 export type ArrowKey = 'left' | 'right' | 'up' | 'down';
 export type GameInput =
-  | { type: 'down'; x: number | null; y: number | null }
-  | { type: 'up'; x: number | null; y: number | null }
-  | { type: 'move'; x: number; y: number; pressed: boolean }
+  | { type: 'down'; x: number | null; y: number | null; id?: number }
+  | { type: 'up'; x: number | null; y: number | null; id?: number }
+  | { type: 'move'; x: number; y: number; pressed: boolean; id?: number }
   | { type: 'key'; key: ArrowKey; repeat: boolean }
   | { type: 'keyup'; key: ArrowKey };
 
+/**
+ * Touch mode: the last thing used was a finger (on-screen buttons shown), not
+ * a mouse or the keyboard. Starts from the device's main pointer.
+ */
+let touchMode = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+
+export function isTouchMode(): boolean {
+  return touchMode;
+}
+
 export class Input {
   private listeners = new Set<(e: GameInput) => void>();
-  pointer: { x: number; y: number; pressed: boolean } = { x: 640, y: 360, pressed: false };
-  /** Keys currently held (for continuous movement). */
-  held = new Set<string>();
+  /** Pointers currently down. */
+  private readonly down = new Set<number>();
 
   constructor(screen: Screen) {
     const el = screen.canvas;
     el.addEventListener('pointerdown', (e) => {
       e.preventDefault();
       el.setPointerCapture(e.pointerId);
+      touchMode = e.pointerType === 'touch' || e.pointerType === 'pen';
       const [x, y] = screen.toLogical(e.clientX, e.clientY);
-      this.pointer = { x, y, pressed: true };
-      this.emit({ type: 'down', x, y });
+      this.down.add(e.pointerId);
+      this.emit({ type: 'down', x, y, id: e.pointerId });
     });
     el.addEventListener('pointermove', (e) => {
       const [x, y] = screen.toLogical(e.clientX, e.clientY);
-      this.pointer = { x, y, pressed: this.pointer.pressed };
-      this.emit({ type: 'move', x, y, pressed: this.pointer.pressed });
+      this.emit({ type: 'move', x, y, pressed: this.down.has(e.pointerId), id: e.pointerId });
     });
     const up = (e: PointerEvent) => {
+      if (!this.down.delete(e.pointerId)) return;
       const [x, y] = screen.toLogical(e.clientX, e.clientY);
-      if (!this.pointer.pressed) return;
-      this.pointer = { x, y, pressed: false };
-      this.emit({ type: 'up', x, y });
+      this.emit({ type: 'up', x, y, id: e.pointerId });
     };
     el.addEventListener('pointerup', up);
     el.addEventListener('pointercancel', up);
@@ -49,10 +59,11 @@ export class Input {
       const k = keyOf(e);
       if (e.key === ' ' || e.key === 'Enter') {
         e.preventDefault();
+        touchMode = false;
         if (!e.repeat) this.emit({ type: 'down', x: null, y: null });
       } else if (k) {
         e.preventDefault();
-        this.held.add(k);
+        touchMode = false;
         this.emit({ type: 'key', key: k, repeat: e.repeat });
       }
     });
@@ -60,10 +71,7 @@ export class Input {
       if (isTyping(e)) return;
       if (e.key === ' ' || e.key === 'Enter') this.emit({ type: 'up', x: null, y: null });
       const k = keyOf(e);
-      if (k) {
-        this.held.delete(k);
-        this.emit({ type: 'keyup', key: k });
-      }
+      if (k) this.emit({ type: 'keyup', key: k });
     });
   }
 

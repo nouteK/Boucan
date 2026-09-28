@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { RoomSnapshot, type Verdict } from '@boucan/shared';
+import { MICROGAMES, RoomSnapshot, type Verdict } from '@boucan/shared';
 import { DEFAULT_GAME_CONFIG } from '../src/config/game-config';
 import { Harness, setupRoom, type TestClient } from './harness';
 
@@ -57,35 +57,34 @@ describe('lobby', () => {
     harness = new Harness();
     const { host, players } = setupRoom(harness, 2, { ready: false, bots: 2 });
     expect(host.request('match.configure', { lives: 7 })).toMatchObject({ ok: false, error: { code: 'INVALID_PAYLOAD' } });
-    expect(host.request('match.configure', { zone: 'piscine' as 'recre' })).toMatchObject({ ok: false, error: { code: 'INVALID_PAYLOAD' } });
-    host.ok('match.configure', { zone: 'cantine', lives: 3, length: 'court' });
+    expect(host.request('match.configure', { zone: 'piscine' as 'foret' })).toMatchObject({ ok: false, error: { code: 'INVALID_PAYLOAD' } });
+    host.ok('match.configure', { zone: 'neige', lives: 3, length: 'court' });
     expect(host.snapshot.lobby.players.every((p) => p.lives === 3)).toBe(true);
     expect(host.request('match.start')).toMatchObject({ ok: false, error: { code: 'NOT_ALL_READY' } });
     players.forEach((p) => p.ok('player.ready', { ready: true }));
     expect(host.snapshot.lobby.canStart).toBe(true);
     host.ok('match.start');
     expect(host.phase).toBe('STAGE_INTRO');
-    expect(host.snapshot.match.zone).toBe('cantine');
+    expect(host.snapshot.match.zone).toBe('neige');
   });
 });
 
 describe('match flow', () => {
-  it('solo, all wins: a level of microgames, speed-ups, a boss (+1 life), then results', () => {
+  it('solo, all wins: a level of microgames with speed-ups, then results', () => {
     harness = new Harness();
-    const { host } = setupRoom(harness, 1, { config: { length: 'court', zone: 'recre' } });
+    const { host } = setupRoom(harness, 1, { config: { length: 'court', zone: 'ville' } });
     host.autoplay('win');
     host.ok('match.start');
     harness.advanceUntil(() => host.phase === 'STAGE_RESULTS');
 
     const all = rounds(host);
-    expect(all).toHaveLength(gamesPerLevel + 1);
+    expect(all).toHaveLength(gamesPerLevel);
     expect(all.map((r) => r.index)).toEqual(all.map((_, i) => i + 1));
-    expect(all.at(-1)!.kind).toBe('boss');
-    expect(all.slice(0, -1).every((r) => r.kind === 'solo')).toBe(true); // no duel alone
-    expect(all.every((r) => r.zone === 'recre')).toBe(true);
+    expect(all.every((r) => r.kind === 'solo')).toBe(true); // no duel alone, no boss in the catalog
+    expect(all.every((r) => r.zone === 'ville')).toBe(true);
     const speedUps = all.filter((r) => r.speedUp).map((r) => r.index);
     expect(speedUps).toEqual([speedUpEvery + 1, 2 * speedUpEvery + 1]);
-    expect(all.at(-2)!.tempo).toBeGreaterThan(1);
+    expect(all.at(-1)!.tempo).toBeGreaterThan(1);
     const phases = host.phaseHistory();
     expect(phases[0]).toBe('STAGE_INTRO');
     expect(phases.slice(1, -1)).toEqual(all.flatMap(() => ['INTERLUDE', 'MICROGAME', 'VERDICT']));
@@ -93,12 +92,34 @@ describe('match flow', () => {
 
     const final = host.snapshot.match.final!;
     expect(final.winnerIds).toEqual([host.playerId]);
-    expect(final.entries[0]).toMatchObject({ alive: true, lives: 5, wins: gamesPerLevel + 1 });
-    expect(final.microgamesPlayed).toBe(gamesPerLevel + 1);
+    expect(final.entries[0]).toMatchObject({ alive: true, lives: 4, wins: gamesPerLevel });
+    expect(final.microgamesPlayed).toBe(gamesPerLevel);
 
     host.ok('match.returnToLobby');
     expect(host.phase).toBe('LOBBY');
     expect(host.me()).toMatchObject({ lives: 4, wins: 0, alive: true, ready: false });
+  });
+
+  it('levels rise after their microgames; a boss, when the catalog has one, closes the level (+1 life)', () => {
+    harness = new Harness();
+    const { host } = setupRoom(harness, 1, { config: { length: 'normal' } });
+    host.autoplay('win');
+    host.ok('match.start');
+    harness.advanceUntil(() => host.phase === 'STAGE_RESULTS');
+    const plain = rounds(host);
+    expect(plain).toHaveLength(2 * gamesPerLevel);
+    expect(plain[gamesPerLevel]).toMatchObject({ level: 2, levelUp: true });
+    harness.dispose();
+
+    harness = new Harness({ catalog: [...MICROGAMES, { id: 'boss-test', kind: 'boss', zones: 'all', durationMs: 5000, hint: 'tap' }] });
+    const { host: h2 } = setupRoom(harness, 1, { config: { length: 'court' } });
+    h2.autoplay('win');
+    h2.ok('match.start');
+    harness.advanceUntil(() => h2.phase === 'STAGE_RESULTS');
+    const all = rounds(h2);
+    expect(all).toHaveLength(gamesPerLevel + 1);
+    expect(all.at(-1)).toMatchObject({ kind: 'boss', microgameId: 'boss-test' });
+    expect(h2.snapshot.match.final!.entries[0]).toMatchObject({ alive: true, lives: 5 });
   });
 
   it('solo, all losses: eliminated after `lives` microgames', () => {

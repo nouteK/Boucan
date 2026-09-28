@@ -3,7 +3,7 @@ import { GAME } from '../config';
 import { assets } from '../engine/assets';
 import { audio } from '../engine/audio';
 import { outlineText } from '../engine/draw';
-import { Input } from '../engine/input';
+import { Input, isTouchMode } from '../engine/input';
 import { Screen } from '../engine/screen';
 import { fuseTimer, instruction, outcomeSticker } from '../match/hud';
 import type { MgContext, MgInstance, MgPlayer } from '../microgames/api';
@@ -15,7 +15,7 @@ import { microgameDef } from '../microgames';
  * module in the page, the other players being bots.
  *   &level=1..3   difficulty          &tempo=1.4   speed (solo)
  *   &seed=123     fixed situation     &players=4   participants
- *   &freeze=1500  stop the clock at that time (screenshots)
+ *   &freeze=1500  jump straight to that time (simulated in 16 ms steps) and stop the clock (screenshots)
  * Loaded by main.ts in dev builds only; never shipped.
  */
 
@@ -139,6 +139,9 @@ export async function startPreview(root: HTMLElement, q: URLSearchParams): Promi
       shake: (ms) => (shake = Math.max(shake, ms)),
       activeAt: 0,
       serverNow: () => t,
+      get touch() {
+        return isTouchMode();
+      },
     };
     const created = def.create(ctx);
     run = duel ? await duelRun(info, seed, players, () => created) : null;
@@ -156,22 +159,30 @@ export async function startPreview(root: HTMLElement, q: URLSearchParams): Promi
     const real = Math.min(100, now - last);
     last = now;
     if (!instance || starting) return;
-    const dt = freeze !== null && t >= freeze ? 0 : real * tempo;
-    t += dt;
-    shake = Math.max(0, shake - real);
-    if (run && dt > 0) {
-      run.tick(t);
-      if (!outcome && (run.complete(t) || t >= info.durationMs)) {
-        const mine = run.results(t)[players[0]!.id];
-        outcome = mine === 'success' ? 'success' : 'failure';
+    const step = (dt: number) => {
+      t += dt;
+      if (run && dt > 0) {
+        run.tick(t);
+        if (!outcome && (run.complete(t) || t >= info.durationMs)) {
+          const mine = run.results(t)[players[0]!.id];
+          outcome = mine === 'success' ? 'success' : 'failure';
+          outcomeAt = t;
+        }
+      }
+      instance!.update(dt, t);
+      if (!run && !outcome && t >= info.durationMs) {
+        outcome = instance!.timeout?.() ?? 'failure';
         outcomeAt = t;
       }
+    };
+    let dt = real * tempo;
+    if (freeze !== null) {
+      // Fast-forward to the frozen time at once (independent of the frame rate), then hold.
+      dt = 0;
+      while (t < freeze) step(Math.min(16, freeze - t));
     }
-    instance.update(dt, t);
-    if (!run && !outcome && t >= info.durationMs) {
-      outcome = instance.timeout?.() ?? 'failure';
-      outcomeAt = t;
-    }
+    step(dt);
+    shake = Math.max(0, shake - real);
     const c = screen.begin();
     c.fillStyle = '#000';
     c.fillRect(0, 0, GAME.width, GAME.height);

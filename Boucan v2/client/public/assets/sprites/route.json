@@ -1,0 +1,19 @@
+{
+ "frames": {
+  "route": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 1597,
+    "h": 798
+   },
+   "anchor": {
+    "x": 0,
+    "y": 0
+   }
+  }
+ },
+ "meta": {
+  "note": "Route en perspective (esquive, skate). Ancre = coin haut gauche."
+ }
+}

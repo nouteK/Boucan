@@ -1,48 +1,36 @@
 import type { MicrogameDef } from './api';
 import attrape from './games/attrape';
-import avion from './games/avion';
 import baisse from './games/baisse';
-import bossCantine from './games/boss-cantine';
-import bossClasse from './games/boss-classe';
-import bossRecre from './games/boss-recre';
 import bouge from './games/bouge';
-import boules from './games/boules';
 import boxe from './games/boxe';
 import bulle from './games/bulle';
 import but from './games/but';
 import caisse from './games/caisse';
 import combo from './games/combo';
-import copie from './games/copie';
 import corde from './games/corde';
 import cours from './games/cours';
-import course from './games/course';
-import cristal from './games/cristal';
 import degage from './games/degage';
 import degaine from './games/degaine';
-import devore from './games/devore';
-import efface from './games/efface';
+import esquive from './games/esquive';
+import fusee from './games/fusee';
 import gardien from './games/gardien';
-import gemmes from './games/gemmes';
-import glace from './games/glace';
 import glisse from './games/glisse';
+import hautbas from './games/hautbas';
 import lancer from './games/lancer';
-import main from './games/main';
-import noir from './games/noir';
+import laser from './games/laser';
 import panier from './games/panier';
 import patate from './games/patate';
+import ping from './games/ping';
 import plateau from './games/plateau';
 import puree from './games/puree';
-import queue from './games/queue';
 import radeau from './games/radeau';
-import recette from './games/recette';
-import renverse from './games/renverse';
 import roi from './games/roi';
+import rythme from './games/rythme';
 import saute from './games/saute';
+import sauter from './games/sauter';
 import skate from './games/skate';
 import soleil from './games/soleil';
 import soupe from './games/soupe';
-import stop from './games/stop';
-import taille from './games/taille';
 
 /**
  * Every client microgame. To add one: create games/<id>.ts, import it here,
@@ -50,11 +38,9 @@ import taille from './games/taille';
  * A test checks that the two lists match.
  */
 export const MICROGAME_DEFS: readonly MicrogameDef[] = [
-  cours, saute, attrape, stop, degage, bouge, but, baisse, panier, caisse, combo, glisse, skate, lancer,
-  plateau, queue, puree, devore, renverse, soupe, recette,
-  efface, copie, avion, main, taille, gemmes, bulle,
-  degaine, patate, course, cristal, boules, glace, corde, radeau, boxe, soleil, roi, gardien, noir,
-  bossRecre, bossCantine, bossClasse,
+  cours, saute, attrape, bouge, but, combo, baisse, panier, lancer, skate, esquive,
+  hautbas, rythme, fusee, laser, caisse, degage, bulle, glisse, plateau, puree, soupe,
+  patate, degaine, soleil, roi, gardien, sauter, ping, corde, radeau, boxe,
 ];
 
 const byId = new Map(MICROGAME_DEFS.map((d) => [d.id, d]));

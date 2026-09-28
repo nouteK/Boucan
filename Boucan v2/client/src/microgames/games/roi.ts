@@ -1,179 +1,268 @@
 import type { TypedPayload } from '@boucan/shared';
-import { ellipse, g, INK, outlineText, poly, slam, star } from '../../engine/draw';
+import { box, circle, clamp, ellipse, g, INK, outlineText, poly, slam } from '../../engine/draw';
 import { defineMicrogame } from '../api';
 import { sceneBg } from '../backdrops';
-import { Actor, sideOf } from '../common';
-import { keyCap } from '../props';
+import { Actor } from '../common';
+import { Pad, PAD_LEFT, PAD_RIGHT, PAD_Y } from '../pad';
+import { bomb, boom } from '../props';
 
 /**
- * DUEL — LE ROI DE LA COLLINE : one king on the summit, the others climb by
- * pressing left, right, left… The king strikes a slope (← / → or a side of
- * the screen) after a wind-up everyone sees: climbers near the top tumble —
- * unless they hold on (keep a finger down, or ↓). Summit = dethroned king.
+ * DUEL — LE ROI DE LA COLLINE ! One king on the summit throws bombs down the
+ * slope; the others climb on their own and dodge left / right. A climber at
+ * the top dethrones the king; otherwise the king wins. Server-judged; the
+ * client extrapolates positions between states (see server roi.ts). The
+ * king looks down the slope from the top, a climber from behind themself.
  */
 interface State {
   king: string;
-  strike: { side: -1 | 1; at: number; phase: 'wind' | 'hit' } | null;
-  climbers: Record<string, { side: -1 | 1; height: number; stunned: boolean; holding: boolean }>;
+  kx: number;
+  kdir: number;
+  ready: boolean;
+  bombs: { id: number; x: number; z: number; dx: number }[];
+  climbers: Record<string, { x: number; z: number; dir: number; stun: boolean }>;
   result: 'king' | 'climbers' | null;
 }
 
-const BASE_Y = 560;
-const PEAK = { x: 640, y: 250 };
-/** Climbers above this height are within the king's reach (same as the server). */
-const REACH = 0.68;
-const HOLD_AFTER_MS = 180;
+/** Mirror of the server's ROI constants (metres, m/s). */
+const L = 20;
+const W = 3;
+const MOVE = 4.2;
+const CLIMB = 2.3;
+const BOMB_SPEED = 11;
+const SLOPE = 0.35;
+const KNOCK = 5;
+const FOCAL = 840;
+const height = (z: number) => clamp(z, 0, L) * SLOPE;
 
-/** Point on a slope at height 0..1 (quadratic curve from the foot to the summit). */
-function slope(side: -1 | 1, k: number): { x: number; y: number } {
-  const u = 1 - k;
-  const bx = u * u * 160 + 2 * u * k * 420 + k * k * 560;
-  const by = u * u * BASE_Y + 2 * u * k * (PEAK.y + 40) + k * k * PEAK.y;
-  return { x: side < 0 ? bx : 1280 - bx, y: by };
-}
+type Vec = [number, number, number];
 
 export default defineMicrogame({
   id: 'roi',
   verb: 'LE ROI DE LA COLLINE !',
   create(ctx) {
-    const actors = new Map(ctx.players.map((p) => [p.id, new Actor(p, 'idle')]));
-    const shown = new Map<string, number>();
-    const climbedAt = new Map<string, number>();
-    const pows: { id: string; t: number; held: boolean }[] = [];
+    const actors = new Map(ctx.players.map((p) => [p.id, new Actor(p, 'run')]));
+    const kingPad = new Pad(
+      ctx,
+      [
+        { action: 'left', label: '◀', x: PAD_LEFT[0]!, y: PAD_Y, keys: ['left'] },
+        { action: 'right', label: '▶', x: PAD_LEFT[1]!, y: PAD_Y, keys: ['right'] },
+        { action: 'throw', label: 'BOMBE', x: PAD_RIGHT[0]!, y: PAD_Y, keys: ['up', 'down'], big: true },
+      ],
+      { tap: 'throw' },
+    );
+    const climberPad = new Pad(
+      ctx,
+      [
+        { action: 'left', label: '◀', x: PAD_LEFT[0]!, y: PAD_Y, keys: ['left'] },
+        { action: 'right', label: '▶', x: PAD_RIGHT[0]!, y: PAD_Y, keys: ['right'] },
+      ],
+      { halves: ['left', 'right'] },
+    );
     let state: State | null = null;
-    let last: -1 | 1 | null = null;
-    let downAt: number | null = null;
-    let holding = false;
-    let clock = 0;
+    let stateAt = 0;
+    let dir = 0;
     let resultAt = -1;
-    const setHold = (on: boolean) => {
-      if (on === holding) return;
-      holding = on;
-      ctx.send({ type: 'hold', on });
-    };
+    let clock = 0;
+    let fx: { x: number; z: number; t: number }[] = [];
+    const isKing = () => state?.king === ctx.me.id;
     return {
       input(e) {
         if (!state || state.result) return;
-        const side = sideOf(e);
-        if (state.king === ctx.me.id) {
-          if (side !== null) ctx.send({ type: 'strike', side });
-          return;
-        }
-        if (e.type === 'down') downAt = clock;
-        if (e.type === 'up') {
-          downAt = null;
-          setHold(false);
-        }
-        if (e.type === 'key' && e.key === 'down' && !e.repeat) setHold(true);
-        if (e.type === 'keyup' && e.key === 'down') setHold(false);
-        if (side === null || side === last || holding) return;
-        last = side;
-        ctx.send({ type: 'climb', side });
-        ctx.sfx('tap');
-      },
-      onState(s) {
-        const next = s as State;
-        for (const [id, c] of Object.entries(next.climbers)) if (c.height > (state?.climbers[id]?.height ?? 0)) climbedAt.set(id, clock);
-        if (next.result && !state?.result) resultAt = clock;
-        state = next;
-      },
-      onEvent(e: TypedPayload) {
-        if (e.type === 'windup') ctx.sfx('whoosh');
-        if (e.type === 'knock' || e.type === 'held') {
-          pows.push({ id: String(e.playerId), t: 0, held: e.type === 'held' });
-          if (e.type === 'knock') actors.get(String(e.playerId))?.force('hurt');
-          if (e.playerId === ctx.me.id) {
-            ctx.sfx(e.type === 'knock' ? 'hit' : 'block');
-            if (e.type === 'knock') ctx.shake(240);
+        const pad = isKing() ? kingPad : climberPad;
+        for (const ev of pad.input(e)) {
+          if (ev.down && ev.action === 'throw' && state.ready) {
+            ctx.send({ type: 'throw' });
+            actors.get(ctx.me.id)?.force('throw');
           }
         }
-        if (e.type === 'summit') ctx.sfx('pop');
+        const next = pad.axis('left', 'right');
+        if (next !== dir) {
+          dir = next;
+          ctx.send({ type: 'move', dir });
+        }
+      },
+      onState(s, serverTime) {
+        const next = s as State;
+        if (next.result && !state?.result) resultAt = clock;
+        state = next;
+        stateAt = serverTime;
+      },
+      onEvent(e: TypedPayload) {
+        if (e.type === 'throw') {
+          if (state) actors.get(state.king)?.force('throw');
+          ctx.sfx('whoosh');
+        } else if (e.type === 'hit') {
+          const id = String(e.playerId);
+          actors.get(id)?.force('hurt');
+          const c = state?.climbers[id];
+          if (c) fx.push({ x: c.x, z: Math.max(0, c.z - KNOCK) + KNOCK * 0.2, t: 0 });
+          ctx.sfx('boom');
+          if (id === ctx.me.id) ctx.shake(280);
+        } else if (e.type === 'summit') ctx.sfx('pop');
       },
       update(dt, t) {
         clock = t;
-        if (downAt !== null && t - downAt > HOLD_AFTER_MS) setHold(true);
-        for (let i = pows.length - 1; i >= 0; i--) if ((pows[i]!.t += dt) > 450) pows.splice(i, 1);
+        fx = fx.filter((f) => (f.t += dt) < 500);
         if (!state) return;
         for (const [id, a] of actors) {
           const c = state.climbers[id];
-          if (c) {
-            shown.set(id, (shown.get(id) ?? 0) + (c.height - (shown.get(id) ?? 0)) * Math.min(1, dt / 90));
-            if (c.stunned) a.set('hurt');
-            else if (state.result === 'climbers') a.set('win');
-            else if (c.holding) a.set('duck');
-            else a.set(t - (climbedAt.get(id) ?? -1e9) < 220 ? 'run' : 'idle');
-          } else if (state.king === id) a.set(state.strike?.phase === 'wind' ? 'punch' : state.result === 'king' ? 'win' : 'idle');
+          if (state.result) a.set((id === state.king) === (state.result === 'king') ? 'win' : 'lose');
+          else if (c) a.set(c.stun ? 'hurt' : 'run');
+          else if (a.pose !== 'throw' || a.t > 380) a.set('idle');
           a.update(dt);
         }
       },
       draw(t) {
-        sceneBg('foret', BASE_Y, 0, true);
         const c = g();
-        c.fillStyle = '#2f2455';
-        c.fillRect(0, BASE_Y, 1280, 720 - BASE_Y);
-        // The hill.
-        c.fillStyle = '#5fbf5a';
-        c.strokeStyle = INK;
-        c.lineWidth = 8;
-        c.beginPath();
-        c.moveTo(40, BASE_Y + 60);
-        c.lineTo(160, BASE_Y);
-        c.quadraticCurveTo(420, PEAK.y + 40, 560, PEAK.y);
-        c.lineTo(720, PEAK.y);
-        c.quadraticCurveTo(860, PEAK.y + 40, 1120, BASE_Y);
-        c.lineTo(1240, BASE_Y + 60);
-        c.closePath();
-        c.fill();
-        c.stroke();
-        for (let i = 0; i < 9; i++) ellipse(300 + i * 85, BASE_Y - 20 - Math.sin((i / 8) * Math.PI) * 170, 26, 9, 'rgba(255,255,255,.18)', 0);
-        if (!state) return;
-        // The coming blow: red zone on the struck slope.
-        if (state.strike?.phase === 'wind') {
-          const s = state.strike.side;
-          const a = 0.35 + 0.35 * Math.sin(t / 40);
-          const r0 = slope(s, REACH);
-          poly([[r0.x, r0.y + 30], [PEAK.x + s * 80, PEAK.y + 30], [PEAK.x + s * 80, PEAK.y - 230], [r0.x, r0.y - 200]], `rgba(255,60,60,${a})`, 0);
-          outlineText('!', PEAK.x + s * 150, PEAK.y - 200, 70, '#ff3b3b', 'center', 8);
+        if (!state) {
+          sceneBg('foret', 360, 0, true);
+          return;
         }
-        const king = ctx.players.find((p) => p.id === state!.king);
-        if (king) {
-          const flip = state.strike ? state.strike.side < 0 : Math.sin(t / 500) < 0;
-          actors.get(king.id)?.draw(PEAK.x, PEAK.y, 234, { flip });
-          c.save();
-          c.translate(PEAK.x, PEAK.y - 244);
-          poly([[-34, 10], [-34, -22], [-17, -6], [0, -30], [17, -6], [34, -22], [34, 10]], '#ffd23c', 5);
-          c.restore();
-          outlineText(king.isMe ? 'TOI' : king.nickname, PEAK.x, PEAK.y - 300, 28, king.isMe ? '#ffe04a' : king.color);
-        }
-        for (const p of ctx.players) {
-          const cl = state.climbers[p.id];
-          if (!cl) continue;
-          const q = slope(cl.side, shown.get(p.id) ?? 0);
-          actors.get(p.id)?.draw(q.x, q.y, 204, { flip: cl.side > 0, rot: cl.side < 0 ? -0.3 : 0.3 });
-          outlineText(p.isMe ? 'TOI' : p.nickname, q.x, q.y - 220, p.isMe ? 28 : 22, p.isMe ? '#ffe04a' : p.color);
-          if (cl.height >= 1) outlineText('AU SOMMET !', q.x, q.y - 270, 36, '#7dff9b');
-        }
-        for (const pw of pows) {
-          const cl = state.climbers[pw.id];
-          if (!cl) continue;
-          const q = slope(cl.side, shown.get(pw.id) ?? 0);
-          star(q.x, q.y - 120, pw.t / 450);
-          outlineText(pw.held ? 'ACCROCHÉ !' : 'POW !', q.x, q.y - 180, 40, pw.held ? '#7dff9b' : '#ffe04a');
-        }
-        if (!state.result) {
-          if (state.king === ctx.me.id) {
-            keyCap(90, 110, 'left', 1);
-            outlineText('frappe', 90, 162, 20, '#fff', 'center', 4);
-            keyCap(210, 110, 'right', 1);
-            outlineText('frappe', 210, 162, 20, '#fff', 'center', 4);
-          } else if (state.climbers[ctx.me.id]) {
-            const next = last === -1 ? 1 : -1;
-            keyCap(80, 110, 'left', next === -1 ? 1 : 0.75, next === -1 ? 'next' : null);
-            keyCap(180, 110, 'right', next === 1 ? 1 : 0.75, next === 1 ? 'next' : null);
-            keyCap(280, 110, 'down', holding ? 1 : 0.75, holding ? 'ok' : null);
-            outlineText('grimpe · maintiens = s’accrocher', 180, 166, 18, '#fff', 'center', 4);
+        const s = state;
+        // Positions now, extrapolated from the last state.
+        const late = s.result ? 0 : Math.min(0.3, Math.max(0, (ctx.serverNow() - stateAt) / 1000));
+        const climbers = Object.entries(s.climbers).map(([id, cl]) => {
+          const d = id === ctx.me.id ? dir : cl.dir;
+          const boost = Object.keys(s.climbers).length === 1 ? 1.2 : 1;
+          return { id, x: clamp(cl.x + d * MOVE * late, -W, W), z: cl.stun ? cl.z : Math.min(L, cl.z + CLIMB * boost * late), stun: cl.stun };
+        });
+        const kx = clamp(s.kx + (isKing() ? dir : s.kdir) * MOVE * late, -W, W);
+        const bombs = s.bombs.map((b) => ({ id: b.id, x: clamp(b.x + b.dx * late, -W, W), z: b.z - BOMB_SPEED * late }));
+        // Camera: from the top for the king, behind yourself (or the leader) for a climber.
+        const mine = climbers.find((cl) => cl.id === ctx.me.id);
+        const follow = mine ?? [...climbers].sort((a, b) => b.z - a.z)[0];
+        const cam = isKing() || !follow
+          ? { x: kx * 0.4, z: L + 4.5, y: height(L) + 4.5, ph: 0.45, d: -1, hy: 288, ground: 528 }
+          : { x: follow.x * 0.6, z: follow.z - 4.5, y: height(follow.z) + 2.3, ph: -0.12, d: 1, hy: 144, ground: 360 };
+        const cs = Math.cos(cam.ph);
+        const sn = Math.sin(cam.ph);
+        const project = (x: number, y: number, z: number) => {
+          const dx = (x - cam.x) * cam.d;
+          const dz = (z - cam.z) * cam.d;
+          const dy = y - cam.y;
+          const zc = Math.max(0.3, -dy * sn + dz * cs);
+          const yc = dy * cs + dz * sn;
+          return { x: 640 + (FOCAL * dx) / zc, y: cam.hy - (FOCAL * yc) / zc, s: FOCAL / zc };
+        };
+        const visible = (z: number) => (cam.d > 0 ? z > cam.z + 0.4 : z < cam.z - 0.4);
+        const quad = (pts: Vec[], fill: string, lw = 0) => {
+          c.beginPath();
+          pts.forEach((p, i) => {
+            const q = project(...p);
+            if (i) c.lineTo(q.x, q.y);
+            else c.moveTo(q.x, q.y);
+          });
+          c.closePath();
+          c.fillStyle = fill;
+          c.fill();
+          if (lw) {
+            c.strokeStyle = INK;
+            c.lineWidth = lw;
+            c.stroke();
           }
-        } else slam(state.result === 'king' ? 'VIVE LE ROI !' : 'DÉTRÔNÉ !', t - resultAt, '#ffe04a', 640, 150, 90);
+        };
+        // Forest far away, meadow, then the hill.
+        sceneBg('foret', cam.ground, 0, true);
+        c.fillStyle = '#4a9e4a';
+        c.fillRect(0, cam.ground, 1280, 720 - cam.ground);
+        for (let z = -6; z < L + 3; z += 1) {
+          if (!visible(z) && !visible(z + 1)) continue;
+          const a = Math.max(z, cam.d > 0 ? cam.z + 0.4 : -99);
+          const b = Math.min(z + 1, cam.d < 0 ? cam.z - 0.4 : 99);
+          if (a >= b) continue;
+          quad([[-W - 0.7, height(a), a], [W + 0.7, height(a), a], [W + 0.7, height(b), b], [-W - 0.7, height(b), b]], (z + 6) % 2 ? '#5fc25a' : '#6fd46a');
+        }
+        for (const side of [-1, 1]) {
+          c.strokeStyle = '#2e7a2e';
+          c.lineWidth = 6;
+          c.beginPath();
+          let first = true;
+          for (let z = -6; z <= L + 1; z += 0.5) {
+            if (!visible(z)) continue;
+            const q = project(side * (W + 0.7), height(z), z);
+            if (first) c.moveTo(q.x, q.y);
+            else c.lineTo(q.x, q.y);
+            first = false;
+          }
+          c.stroke();
+        }
+        quad([[-2, height(L), L], [2, height(L), L], [2, height(L), L + 2.5], [-2, height(L), L + 2.5]], '#c9a36a', 3);
+        // Everything sorted by depth.
+        const items: { z: number; draw: () => void }[] = [];
+        const label = (id: string, x: number, y: number, size: number) => {
+          const p = ctx.players.find((pl) => pl.id === id);
+          if (p) outlineText(p.isMe ? 'TOI' : p.nickname, x, y, size, p.color, 'center', 5);
+        };
+        items.push({
+          z: L + 1,
+          draw: () => {
+            if (cam.d > 0 && !visible(L + 1)) return;
+            const q = project(kx, height(L), L + 1);
+            const h = 1.55 * q.s * (isKing() ? 1 : 2.2);
+            actors.get(s.king)?.draw(q.x, q.y, h, { flip: cam.d > 0 });
+            const r = Math.max(10, h * 0.1);
+            c.save();
+            c.translate(q.x, q.y - h - 4);
+            poly([[-r, r * 0.3], [-r, -r * 0.7], [-r / 2, -r * 0.2], [0, -r], [r / 2, -r * 0.2], [r, -r * 0.7], [r, r * 0.3]], '#ffd23c', 4);
+            c.restore();
+            label(s.king, q.x, q.y - h - r * 2 - 8, Math.round(Math.min(30, q.s * 0.1 + 14)));
+          },
+        });
+        for (const cl of climbers) {
+          items.push({
+            z: cl.z,
+            draw: () => {
+              if (!visible(cl.z)) return;
+              const q = project(cl.x, height(cl.z), cl.z);
+              const h = 1.55 * q.s;
+              ellipse(q.x, q.y, 0.45 * q.s, 0.12 * q.s, 'rgba(0,0,0,.25)', 0);
+              actors.get(cl.id)?.draw(q.x, q.y, h, { flip: cam.d < 0, shadow: false });
+              label(cl.id, q.x, q.y - h - 6, Math.round(Math.min(30, q.s * 0.1 + 10)));
+              if (cl.z >= L) outlineText('AU SOMMET !', q.x, q.y - h - 40, 34, '#7dff9b');
+            },
+          });
+        }
+        for (const b of bombs) {
+          items.push({
+            z: b.z,
+            draw: () => {
+              if (!visible(b.z)) return;
+              const q = project(b.x, height(b.z) + 0.35, b.z);
+              const gq = project(b.x, height(b.z), b.z);
+              ellipse(gq.x, gq.y, 0.4 * gq.s, 0.1 * gq.s, 'rgba(0,0,0,.3)', 0);
+              bomb(q.x, q.y + 0.35 * q.s, 0.8 * q.s, b.z < L * 0.4 ? 2 : 1, true, t / 80 + b.id);
+            },
+          });
+        }
+        for (const f of fx) {
+          items.push({
+            z: f.z,
+            draw: () => {
+              if (!visible(f.z)) return;
+              const q = project(f.x, height(f.z) + 0.8, f.z);
+              boom(q.x, q.y, Math.min(420, 2.2 * q.s) * (0.6 + Math.min(1, f.t / 150) * 0.4));
+            },
+          });
+        }
+        items.sort((a, b) => (cam.d > 0 ? b.z - a.z : a.z - b.z)).forEach((i) => i.draw());
+        // Race to the top.
+        const X0 = 1200;
+        const Y0 = 96;
+        const HH = 440;
+        box(X0 - 14, Y0 - 10, 28, HH + 20, INK, 0, 14);
+        c.fillStyle = '#5fc25a';
+        c.fillRect(X0 - 8, Y0, 16, HH);
+        outlineText('SOMMET', X0 - 10, Y0 - 24, 18, '#fff', 'center', 4);
+        for (const cl of climbers) {
+          const p = ctx.players.find((pl) => pl.id === cl.id);
+          circle(X0, Y0 + HH * (1 - cl.z / L), cl.id === ctx.me.id ? 11 : 8, p?.color ?? '#fff', 3);
+        }
+        if (!s.result) {
+          const left = Math.max(0, Math.ceil((ctx.activeAt + ctx.info.durationMs - ctx.serverNow()) / 1000));
+          outlineText(`${left} s`, 1140, 50, 34, '#fff', 'right', 7);
+          if (t > 950 && t < 3200) outlineText(isKing() ? 'TU ES LE ROI : BOMBARDE-LES !' : 'GRIMPE ET ESQUIVE LES BOMBES !', 640, 150, 34, '#fff', 'center', 7);
+          (isKing() ? kingPad : climberPad).draw();
+        } else slam(s.result === 'king' ? 'VIVE LE ROI !' : 'DÉTRÔNÉ !', clock - resultAt, '#ffe04a', 640, 220, 90, 1000);
       },
     };
   },

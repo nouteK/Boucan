@@ -4,11 +4,11 @@
     "Chemins relatifs à ce dossier (client/public/assets). Aucun rebuild nécessaire en dev : recharger la page.",
     "characters : un personnage = une image (sprite sheet) + un atlas JSON (format TexturePacker 'frames' + 'meta.anims').",
     "  poses : relie les poses logiques du jeu (idle, run, start, stop, punch, kick, throw, duck, slide, ready, hold, catch, carry, hurt, win, lose,",
-    "  box, box_punch, box_guard, box_hurt, box_win, paddle, paddle_hurt, pull, pull_hard) aux animations de l'atlas. Une pose absente retombe sur 'idle'.",
+    "  box, box_punch, box_guard, box_hurt, box_win, paddle, paddle_hurt, pull, pull_hard, ping, ping_ready, ping_hit) aux animations de l'atlas. Une pose absente retombe sur 'idle'.",
     "  Forme longue : { anim, sprite (planche de 'sprites' au lieu de celle du perso), scale, rot (radians), dx, dy, sx, sy (échelle fixe), squash }.",
-    "sprites : objets animés (bombe du minuteur, ballon…) et planches de poses spéciales d'un personnage. Même format d'atlas.",
+    "sprites : objets animés (bombe du minuteur, ballon…), images de décor (route, table de ping-pong) et planches de poses spéciales d'un personnage. Même format d'atlas.",
     "music : pistes de fond (menu = menu et salon, match = partie). sounds : effets optionnels ; absents = sons synthétisés.",
-    "backgrounds : décors optionnels. Par lieu (recre, cantine, classe : 1280×720) ou décors de micro-jeux { image, floor } (floor = hauteur du sol, 0..1).",
+    "backgrounds : les 4 mondes (foret, ville, neige, futur) : { image, floor } (floor = hauteur du sol, 0..1). Absents = décors dessinés.",
     "Voir client/public/assets/README.md pour le détail."
   ],
   "characters": {
@@ -34,15 +34,66 @@
         "hurt": "hurt",
         "win": "catch",
         "lose": "hurt",
-        "box": { "sprite": "chien-boxe", "anim": "box", "scale": 0.975 },
-        "box_punch": { "sprite": "chien-boxe", "anim": "box_punch", "scale": 0.975 },
-        "box_guard": { "sprite": "chien-boxe", "anim": "box_guard", "scale": 0.975 },
-        "box_hurt": { "sprite": "chien-boxe-ko", "anim": "box_hurt", "scale": 0.975 },
-        "box_win": { "sprite": "chien-boxe", "anim": "box_win", "scale": 0.975 },
-        "paddle": { "sprite": "chien-rame", "anim": "stroke", "scale": 1.18 },
-        "paddle_hurt": { "sprite": "chien-rame", "anim": "tired", "scale": 1.18 },
-        "pull": { "sprite": "chien-corde", "anim": "c1", "scale": 1 },
-        "pull_hard": { "sprite": "chien-corde", "anim": "c2", "scale": 1 }
+        "box": {
+          "sprite": "chien-boxe",
+          "anim": "box",
+          "scale": 0.975
+        },
+        "box_punch": {
+          "sprite": "chien-boxe",
+          "anim": "box_punch",
+          "scale": 0.975
+        },
+        "box_guard": {
+          "sprite": "chien-boxe",
+          "anim": "box_guard",
+          "scale": 0.975
+        },
+        "box_hurt": {
+          "sprite": "chien-boxe-ko",
+          "anim": "box_hurt",
+          "scale": 0.975
+        },
+        "box_win": {
+          "sprite": "chien-boxe",
+          "anim": "box_win",
+          "scale": 0.975
+        },
+        "paddle": {
+          "sprite": "chien-rame",
+          "anim": "stroke",
+          "scale": 1.18
+        },
+        "paddle_hurt": {
+          "sprite": "chien-rame",
+          "anim": "tired",
+          "scale": 1.18
+        },
+        "pull": {
+          "sprite": "chien-corde",
+          "anim": "c1",
+          "scale": 1
+        },
+        "pull_hard": {
+          "sprite": "chien-corde",
+          "anim": "c2",
+          "scale": 1
+        },
+        "ping": {
+          "sprite": "chien-ping",
+          "anim": "ping",
+          "scale": 1
+        },
+        "ping_ready": {
+          "sprite": "chien-ping",
+          "anim": "ping_ready",
+          "scale": 1
+        },
+        "ping_hit": {
+          "sprite": "chien-ping",
+          "anim": "ping_hit",
+          "scale": 1
+        }
       }
     },
     "renard": {
@@ -51,43 +102,152 @@
       "atlas": "characters/renard.json",
       "scale": 0.92,
       "poses": {
-        "idle": { "anim": "stand", "squash": 0.02 },
+        "idle": {
+          "anim": "stand",
+          "squash": 0.02
+        },
         "run": "run",
-        "start": { "anim": "stand", "squash": 0.05 },
+        "start": {
+          "anim": "stand",
+          "squash": 0.05
+        },
         "stop": "stand",
-        "punch": { "anim": "stand", "rot": 0.12, "dx": 26 },
-        "kick": { "anim": "run_2", "rot": -0.15, "dx": 28 },
-        "throw": { "anim": "run_2", "rot": -0.12, "dx": 28 },
-        "duck": { "anim": "run_4", "sx": 1.1, "sy": 0.72 },
-        "slide": { "anim": "run_2", "rot": -0.55, "dy": -20 },
+        "punch": {
+          "anim": "stand",
+          "rot": 0.12,
+          "dx": 26
+        },
+        "kick": {
+          "anim": "run_2",
+          "rot": -0.15,
+          "dx": 28
+        },
+        "throw": {
+          "anim": "run_2",
+          "rot": -0.12,
+          "dx": 28
+        },
+        "duck": {
+          "anim": "run_4",
+          "sx": 1.1,
+          "sy": 0.72
+        },
+        "slide": {
+          "anim": "run_2",
+          "rot": -0.55,
+          "dy": -20
+        },
         "ready": "stand",
         "hold": "stand",
-        "catch": { "anim": "stand", "dy": -8 },
+        "catch": {
+          "anim": "stand",
+          "dy": -8
+        },
         "carry": "stand",
-        "hurt": { "anim": "stand", "rot": -0.35, "dx": -24 },
-        "win": { "anim": "stand", "dy": -12 },
-        "lose": { "anim": "stand", "rot": -0.3 },
-        "box": { "anim": "stand", "squash": 0.03 },
-        "box_punch": { "anim": "run_2", "rot": 0.12, "dx": 30 },
-        "box_guard": { "anim": "run_4", "sx": 1.05, "sy": 0.9 },
-        "box_hurt": { "anim": "stand", "rot": -0.35, "dx": -24 },
-        "box_win": { "anim": "stand", "dy": -12 },
-        "paddle": { "anim": "run_4", "sx": 1.05, "sy": 0.8 },
-        "paddle_hurt": { "anim": "stand", "rot": -0.3, "sy": 0.85 },
-        "pull": { "anim": "run_4", "rot": -0.18, "dx": -10 },
-        "pull_hard": { "anim": "run_2", "rot": -0.3, "dx": -18 }
+        "hurt": {
+          "anim": "stand",
+          "rot": -0.35,
+          "dx": -24
+        },
+        "win": {
+          "anim": "stand",
+          "dy": -12
+        },
+        "lose": {
+          "anim": "stand",
+          "rot": -0.3
+        },
+        "box": {
+          "anim": "stand",
+          "squash": 0.03
+        },
+        "box_punch": {
+          "anim": "run_2",
+          "rot": 0.12,
+          "dx": 30
+        },
+        "box_guard": {
+          "anim": "run_4",
+          "sx": 1.05,
+          "sy": 0.9
+        },
+        "box_hurt": {
+          "anim": "stand",
+          "rot": -0.35,
+          "dx": -24
+        },
+        "box_win": {
+          "anim": "stand",
+          "dy": -12
+        },
+        "paddle": {
+          "anim": "run_4",
+          "sx": 1.05,
+          "sy": 0.8
+        },
+        "paddle_hurt": {
+          "anim": "stand",
+          "rot": -0.3,
+          "sy": 0.85
+        },
+        "pull": {
+          "anim": "run_4",
+          "rot": -0.18,
+          "dx": -10
+        },
+        "pull_hard": {
+          "anim": "run_2",
+          "rot": -0.3,
+          "dx": -18
+        }
       }
     }
   },
   "sprites": {
-    "bombe": { "image": "sprites/bombe.webp", "atlas": "sprites/bombe.json" },
-    "balle": { "image": "sprites/balle.webp", "atlas": "sprites/balle.json" },
-    "skate": { "image": "sprites/skate.webp", "atlas": "sprites/skate.json" },
-    "radeau": { "image": "sprites/radeau.webp", "atlas": "sprites/radeau.json" },
-    "chien-boxe": { "image": "sprites/chien-boxe.webp", "atlas": "sprites/chien-boxe.json" },
-    "chien-boxe-ko": { "image": "sprites/chien-boxe-ko.webp", "atlas": "sprites/chien-boxe-ko.json" },
-    "chien-rame": { "image": "sprites/chien-rame.webp", "atlas": "sprites/chien-rame.json" },
-    "chien-corde": { "image": "sprites/chien-corde.webp", "atlas": "sprites/chien-corde.json" }
+    "bombe": {
+      "image": "sprites/bombe.webp",
+      "atlas": "sprites/bombe.json"
+    },
+    "balle": {
+      "image": "sprites/balle.webp",
+      "atlas": "sprites/balle.json"
+    },
+    "skate": {
+      "image": "sprites/skate.webp",
+      "atlas": "sprites/skate.json"
+    },
+    "radeau": {
+      "image": "sprites/radeau.webp",
+      "atlas": "sprites/radeau.json"
+    },
+    "chien-boxe": {
+      "image": "sprites/chien-boxe.webp",
+      "atlas": "sprites/chien-boxe.json"
+    },
+    "chien-boxe-ko": {
+      "image": "sprites/chien-boxe-ko.webp",
+      "atlas": "sprites/chien-boxe-ko.json"
+    },
+    "chien-rame": {
+      "image": "sprites/chien-rame.webp",
+      "atlas": "sprites/chien-rame.json"
+    },
+    "chien-corde": {
+      "image": "sprites/chien-corde.webp",
+      "atlas": "sprites/chien-corde.json"
+    },
+    "chien-ping": {
+      "image": "sprites/chien-ping.webp",
+      "atlas": "sprites/chien-ping.json"
+    },
+    "route": {
+      "image": "sprites/route.webp",
+      "atlas": "sprites/route.json"
+    },
+    "table-ping": {
+      "image": "sprites/table-ping.webp",
+      "atlas": "sprites/table-ping.json"
+    }
   },
   "sounds": {},
   "music": {
@@ -95,9 +255,21 @@
     "match": "music/match-5-second-chaos.mp3"
   },
   "backgrounds": {
-    "foret": { "image": "backgrounds/foret.webp", "floor": 0.757 },
-    "ville": { "image": "backgrounds/ville.webp", "floor": 0.749 },
-    "neige": { "image": "backgrounds/neige.webp", "floor": 0.723 },
-    "futur": { "image": "backgrounds/futur.webp", "floor": 0.77 }
+    "foret": {
+      "image": "backgrounds/foret.webp",
+      "floor": 0.757
+    },
+    "ville": {
+      "image": "backgrounds/ville.webp",
+      "floor": 0.749
+    },
+    "neige": {
+      "image": "backgrounds/neige.webp",
+      "floor": 0.723
+    },
+    "futur": {
+      "image": "backgrounds/futur.webp",
+      "floor": 0.77
+    }
   }
 }

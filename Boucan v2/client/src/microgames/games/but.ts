@@ -1,6 +1,6 @@
 import { circle, ellipse, g, INK, outlineText, poly, slam, star } from '../../engine/draw';
 import { defineMicrogame } from '../api';
-import { recreBg } from '../backdrops';
+import { sceneBg } from '../backdrops';
 import { between, byLevel, GY, hero, isPress, npc } from '../common';
 
 /**
@@ -92,7 +92,7 @@ export default defineMicrogame({
       },
       timeout: () => (goal ? 'success' : 'failure'),
       draw(time) {
-        recreBg(time, GY);
+        sceneBg('ville', GY);
         const c = g();
         // Goal: posts, crossbar, net.
         c.strokeStyle = 'rgba(255,255,255,.55)';

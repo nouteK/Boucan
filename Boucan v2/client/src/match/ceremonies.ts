@@ -2,17 +2,16 @@ import type { FinalRanking, ZoneId } from '@boucan/shared';
 import { ZONE_THEMES } from '../config';
 import { drawCharacter } from '../engine/assets';
 import { box, burst, g, outlineText, radial, slam } from '../engine/draw';
+import { sceneBg } from '../microgames/backdrops';
 import type { RosterEntry } from './roster';
 
-/** Stage title card: the zone slams in, players run onto the stage. */
+/** Stage title card: the world slams in, players run onto the stage. */
 export function drawStageIntro(zone: ZoneId, level: number, levels: number, players: readonly RosterEntry[], t: number): void {
   const th = ZONE_THEMES[zone];
-  radial(th.bg, t, 18);
+  sceneBg(zone, 560);
   const c = g();
-  c.fillStyle = th.accent;
-  c.fillRect(0, 520, 1280, 200);
-  c.fillStyle = '#161616';
-  c.fillRect(0, 516, 1280, 8);
+  c.fillStyle = th.tint;
+  c.fillRect(0, 0, 1280, 720);
   slam(th.name, t, '#fff', 640, 190, 140);
   if (t > 450) slam(`NIVEAU ${level} / ${levels}`, t - 450, th.counter, 640, 330, 64, 900, 0.03);
   const n = players.length;

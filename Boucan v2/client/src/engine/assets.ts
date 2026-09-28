@@ -49,7 +49,7 @@ interface Manifest {
   sprites?: Record<string, SpriteEntry>;
   sounds?: Record<string, string>;
   music?: Record<string, string>;
-  /** Zone backdrops (path, 1280×720) or microgame scenes ({ image, floor }). */
+  /** World scenes ({ image, floor }), or a plain path. */
   backgrounds?: Record<string, string | { image: string; floor?: number }>;
 }
 
@@ -94,7 +94,10 @@ export type Pose =
   | 'paddle'
   | 'paddle_hurt'
   | 'pull'
-  | 'pull_hard';
+  | 'pull_hard'
+  | 'ping'
+  | 'ping_ready'
+  | 'ping_hit';
 
 const BASE = `${import.meta.env.BASE_URL}assets/`;
 
@@ -165,7 +168,7 @@ class AssetStore {
     return this.characters.has(id);
   }
 
-  /** Zone backdrop (recre, cantine, classe) or microgame scene (foret, ville…); undefined → drawn fallback. */
+  /** World scene (foret, ville, neige, futur); undefined → drawn fallback. */
   background(id: string): Scene | undefined {
     return this.backgrounds.get(id);
   }

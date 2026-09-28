@@ -89,32 +89,13 @@ describe('patate (hot potato)', () => {
   });
 });
 
-describe('course (mash race)', () => {
-  it('the last runner loses, the race stops when one is left', () => {
-    harness = duelHarness('course');
-    const { host, players } = setupRoom(harness, 3);
-    host.ok('match.start');
-    const round = toMicrogame(harness, host);
-    const [a, b] = [players[0]!, players[1]!];
-    for (let i = 0; i < 70 && host.phase === "MICROGAME"; i++) {
-      harness.advance(80);
-      a.send('minigame.input', { roundId: round.roundId, input: { type: 'tap' } });
-      if (i % 3 !== 0) b.send('minigame.input', { roundId: round.roundId, input: { type: 'tap' } });
-    }
-    harness.advanceUntil(() => host.phase === 'VERDICT');
-    const byId = Object.fromEntries(host.snapshot.match.verdict!.entries.map((e) => [e.playerId, e.outcome]));
-    expect(byId[a.playerId!]).toBe('success');
-    expect(byId[b.playerId!]).toBe('success');
-    expect(byId[players[2]!.playerId!]).toBe('failure');
-    expect(host.minigameEvents().filter((e) => e.type === 'finish')).toHaveLength(2);
-  });
-
-  it('taps faster than the input rate are refused', () => {
-    harness = duelHarness('course');
+describe('input rate', () => {
+  it('inputs faster than the module allows are refused', () => {
+    harness = duelHarness('sauter');
     const { host, players } = setupRoom(harness, 2);
     host.ok('match.start');
     const round = toMicrogame(harness, host);
-    const replies = Array.from({ length: 30 }, () => players[1]!.request('minigame.input', { roundId: round.roundId, input: { type: 'tap' } }));
+    const replies = Array.from({ length: 30 }, () => players[1]!.request('minigame.input', { roundId: round.roundId, input: { type: 'jump' } }));
     expect(replies.some((r) => !r.ok && r.error.code === 'RATE_LIMITED')).toBe(true);
   });
 });

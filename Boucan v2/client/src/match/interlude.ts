@@ -2,10 +2,11 @@ import type { Verdict, ZoneId } from '@boucan/shared';
 import { ZONE_THEMES } from '../config';
 import { drawCharacter, type Pose } from '../engine/assets';
 import { bone, box, circle, g, INK, outlineText, poly, shadow, star, W } from '../engine/draw';
+import { sceneBg } from '../microgames/backdrops';
 import type { RosterEntry } from './roster';
 
 /**
- * The interlude stage (like the Smooth Moves disco floor): the zone's set, a
+ * The interlude stage (like the Smooth Moves disco floor): the world's set, a
  * big "screen" in the middle — where the counter shows and into which the
  * camera zooms to enter each microgame — and every player lined up with
  * their lives. Players are the "lives on stage": fails and eliminations show
@@ -22,16 +23,20 @@ export interface LineupState {
   verdictT: number;
 }
 
+/** Floor line of the stage: the world's ground, where the players stand. */
+const FLOOR_Y = 470;
+
 export function drawStage(zone: ZoneId, t: number): void {
   const th = ZONE_THEMES[zone];
   const c = g();
-  c.fillStyle = th.bg;
+  sceneBg(zone, FLOOR_Y);
+  c.fillStyle = th.tint;
   c.fillRect(0, 0, W, 720);
   // Sunburst behind the screen.
   c.save();
   c.translate(640, 200);
   c.rotate(t / 6000);
-  c.fillStyle = 'rgba(255,255,255,.13)';
+  c.fillStyle = 'rgba(255,255,255,.1)';
   for (let i = 0; i < 16; i++) {
     c.beginPath();
     c.moveTo(0, 0);
@@ -39,26 +44,11 @@ export function drawStage(zone: ZoneId, t: number): void {
     c.fill();
   }
   c.restore();
-  // Zone decoration.
-  if (zone === 'recre') {
-    for (let x = -20; x < W; x += 90) box(x, 330, 60, 150, '#e8c07a', 5);
-    box(0, 360, W, 18, '#d6a55a', 5);
-  } else if (zone === 'cantine') {
-    for (let x = 0; x < W; x += 80) {
-      c.fillStyle = (x / 80) % 2 ? '#fff3d6' : '#ffe0a8';
-      c.fillRect(x, 360, 80, 120);
-    }
-  } else {
-    box(40, 370, 250, 110, '#8a5a2b', 6);
-    box(990, 370, 250, 110, '#8a5a2b', 6);
-  }
-  // Floor.
-  c.fillStyle = th.accent;
-  c.fillRect(0, 470, W, 250);
-  c.fillStyle = 'rgba(0,0,0,.12)';
-  for (let x = 0; x < W; x += 110) c.fillRect(x + ((t / 20) % 110), 470, 55, 250);
+  // Moving floor stripes (the stage), on the world's ground.
+  c.fillStyle = 'rgba(0,0,0,.1)';
+  for (let x = -110; x < W; x += 110) c.fillRect(x + ((t / 20) % 110), FLOOR_Y, 55, 720 - FLOOR_Y);
   c.fillStyle = INK;
-  c.fillRect(0, 466, W, 8);
+  c.fillRect(0, FLOOR_Y - 4, W, 8);
 }
 
 /** The central screen (frame + inner content drawn by the caller). */

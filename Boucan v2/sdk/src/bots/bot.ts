@@ -116,14 +116,6 @@ export class BotPlayer {
       this.after(d * rng.range(0.3, 0.9), () => {
         void this.client.reportResult({ outcome: success ? 'success' : 'failure' }, roundId).catch(() => {});
       });
-    } else if (round.microgameId === 'course') {
-      const interval = 1000 / (5 + this.skill * 5);
-      const tap = () => {
-        if (this.roundId !== roundId) return;
-        this.client.sendInput({ type: 'tap' }, { roundId });
-        this.after(interval * rng.range(0.85, 1.15), tap);
-      };
-      this.after(120, tap);
     }
   }
 

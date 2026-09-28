@@ -3,7 +3,7 @@ import type { BoucanClient } from '@boucan/sdk';
 import { GAME, ZONE_THEMES } from '../config';
 import { audio } from '../engine/audio';
 import { easeInCubic, easeOutCubic, g, lerp, outlineText, setContext, slam } from '../engine/draw';
-import type { GameInput } from '../engine/input';
+import { isTouchMode, type GameInput } from '../engine/input';
 import { offscreen, type Screen } from '../engine/screen';
 import type { MgContext, MgInstance } from '../microgames/api';
 import { microgameDef } from '../microgames';
@@ -255,6 +255,9 @@ export class MatchView {
       shake: (ms) => (this.shakeMs = Math.max(this.shakeMs, ms)),
       activeAt: round.timing.activeAt,
       serverNow: () => client.serverNow(),
+      get touch() {
+        return isTouchMode();
+      },
     };
     let instance: MgInstance;
     try {

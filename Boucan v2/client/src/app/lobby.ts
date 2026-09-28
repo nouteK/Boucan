@@ -24,9 +24,10 @@ const NICK_ERRORS: Record<string, string> = {
 
 const ZONES: { value: MatchConfig['zone']; label: string }[] = [
   { value: 'mix', label: 'Mélange' },
-  { value: 'recre', label: 'Récré' },
-  { value: 'cantine', label: 'Cantine' },
-  { value: 'classe', label: 'Classe' },
+  { value: 'foret', label: 'Forêt' },
+  { value: 'ville', label: 'Ville' },
+  { value: 'neige', label: 'Neige' },
+  { value: 'futur', label: 'Futur' },
 ];
 const LENGTHS: { value: MatchConfig['length']; label: string }[] = [
   { value: 'court', label: 'Courte' },
@@ -156,7 +157,7 @@ export class LobbyView {
 
     this.players.replaceChildren(...this.slots(lobby.players, isHost));
     this.settings.replaceChildren(
-      this.segment('LIEU', ZONES, lobby.config.zone, isHost, (zone) => ({ zone })),
+      this.segment('MONDE', ZONES, lobby.config.zone, isHost, (zone) => ({ zone })),
       this.segment(
         'VIES',
         GAME_RULES.livesOptions.map((n) => ({ value: n, label: String(n) })),

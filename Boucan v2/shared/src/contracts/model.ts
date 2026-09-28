@@ -45,7 +45,7 @@ export type Player = z.infer<typeof Player>;
 const Zone = z.enum(ZONES);
 
 export const MatchConfig = z.object({
-  /** Stage (scenery + microgame pool). "mix" = every zone. */
+  /** World of the stage (scenery + microgame pool). "mix" = every world. */
   zone: z.union([Zone, z.literal('mix')]),
   lives: z
     .number()
@@ -86,11 +86,11 @@ export const Round = z.object({
   index: z.number().int().min(1),
   microgameId: z.string(),
   kind: z.enum(['solo', 'boss', 'duel']),
-  /** Zone the microgame is dressed in. */
+  /** World the microgame is set in. */
   zone: Zone,
   /** Shared seed: every client builds the same situation. */
   seed: Seed,
-  /** Difficulty level (1 → 3), rises after each boss. */
+  /** Difficulty level (1 → 3), rises at the end of each level. */
   level: z.number().int().min(1),
   /** Game speed multiplier (1 = normal). Gameplay time runs `tempo` times faster. */
   tempo: z.number().positive(),
@@ -152,7 +152,7 @@ export const MatchState = z.object({
   phaseStartedAt: Timestamp,
   /** End of the current phase (null = open-ended: LOBBY, STAGE_RESULTS). */
   phaseEndsAt: Timestamp.nullable(),
-  /** Zone of the stage (the configured zone, or the zone of the current round in "mix"). */
+  /** World of the stage (the configured world, or the world of the current round in "mix"). */
   zone: Zone,
   level: z.number().int().min(1),
   levels: z.number().int().min(1),

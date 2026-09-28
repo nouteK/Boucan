@@ -1,6 +1,7 @@
 import type { TypedPayload } from '@boucan/shared';
-import { circle, g, outlineText, radial, slam } from '../../engine/draw';
+import { g, outlineText, slam } from '../../engine/draw';
 import { defineMicrogame } from '../api';
+import { sceneBg } from '../backdrops';
 import { arenaHeight, fighters, nameTag } from '../duel-common';
 
 /**
@@ -50,12 +51,11 @@ export default defineMicrogame({
       },
       draw(t) {
         const go = state.signal;
-        if (go) radial(Math.floor(t / 90) % 2 ? '#ff3b3b' : '#ffcf3b', t, 20);
-        else radial('#3a2a4a', t, 14);
+        sceneBg('neige', GY);
+        // Tension before the signal (dusk), flashing red / yellow after it.
         const c = g();
-        c.fillStyle = '#161616';
-        c.fillRect(0, GY, 1280, 720 - GY);
-        circle(640, 330, 150, go ? 'rgba(255,255,255,.3)' : '#ffb34a', 0);
+        c.fillStyle = go ? (Math.floor(t / 80) % 2 ? 'rgba(255,60,60,.35)' : 'rgba(255,210,60,.35)') : 'rgba(20,10,40,.28)';
+        c.fillRect(0, 0, 1280, 720);
         for (const f of fs) {
           f.actor.draw(f.x, GY, h, { flip: f.x > 640 });
           nameTag(f, GY - h - 24);
@@ -63,7 +63,7 @@ export default defineMicrogame({
           if (p?.early) outlineText('TROP TÔT', f.x, GY + 40, 28, '#ff6b6b');
           else if (p?.ms != null) outlineText(`${p.ms} ms`, f.x, GY + 40, 28, '#fff');
         }
-        if (go) slam('DÉGAINE !', t - signalSeenAt, '#fff', 640, 150, 140);
+        if (go) slam('TAPE !', t - signalSeenAt, '#fff', 640, 150, 150);
         else if (t > 900) outlineText('…', 640, 160, 120, '#fff');
       },
     };

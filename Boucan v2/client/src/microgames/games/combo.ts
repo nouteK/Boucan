@@ -1,3 +1,4 @@
+import { GAME } from '../../config';
 import { box, g, INK, outlineText, star } from '../../engine/draw';
 import { defineMicrogame } from '../api';
 import { sceneBg } from '../backdrops';
@@ -5,9 +6,9 @@ import { byLevel, GY, hero, sideOf } from '../common';
 import { keyCap, ringTimer } from '../props';
 
 /**
- * SUIS LE COMBO ! — punching bag: hit left / right exactly as shown (screen
- * halves or ← →), each within its little time window. One slip and the bag
- * swings back into your face.
+ * SUIS LE COMBO ! — punching bag: after « PRÊT… GO ! », hit left / right
+ * exactly as shown (screen halves or ← →), each within its little time
+ * window. One slip and the bag swings back into your face.
  */
 const X = 470;
 const PIVOT = { x: 680, y: GY - 420 };
@@ -18,13 +19,12 @@ export default defineMicrogame({
   create(ctx) {
     const me = hero(ctx, 'box');
     const len = byLevel(ctx, 4, 5, 6);
-    const window = byLevel(ctx, 900, 800, 720);
-    /** The first key also has to wait for the instruction to clear. */
-    const limit = () => (i === 0 ? window + 700 : window);
+    const window = byLevel(ctx, 900, 820, 750);
+    const READY_MS = GAME.instructionMs + 400;
     const seq = Array.from({ length: len }, () => (ctx.rng.chance(0.5) ? -1 : 1) as -1 | 1);
     let i = 0;
     let since = 0;
-    let state: 'play' | 'done' | 'fail' = 'play';
+    let state: 'ready' | 'play' | 'done' | 'fail' = 'ready';
     let bad = -1;
     let angle = 0;
     let spin = 0;
@@ -55,8 +55,14 @@ export default defineMicrogame({
           ctx.win();
         }
       },
-      update(dt) {
+      update(dt, t) {
         me.update(dt);
+        if (state === 'ready') {
+          if (t < READY_MS) return;
+          state = 'play';
+          since = 0;
+          ctx.sfx('go');
+        }
         since += dt;
         if (impactIn >= 0 && (impactIn -= dt) < 0) {
           spin += 0.004;
@@ -68,7 +74,7 @@ export default defineMicrogame({
         spin *= Math.exp(-dt / 700);
         angle += spin * dt;
         pows = pows.filter((p) => (p.t += dt) < 220);
-        if (state === 'play' && since > limit()) fail(i);
+        if (state === 'play' && since > window) fail(i);
         if (state === 'fail' && angle < -0.12 && !hurt) {
           hurt = true;
           me.force('box_hurt');
@@ -77,8 +83,8 @@ export default defineMicrogame({
         if (me.pose === 'box_punch' && me.t > 300) me.set(state === 'done' ? 'box_win' : 'box');
       },
       timeout: () => (state === 'done' ? 'success' : 'failure'),
-      draw() {
-        sceneBg('ville', GY);
+      draw(t) {
+        sceneBg('futur', GY);
         const c = g();
         c.save();
         c.translate(PIVOT.x, PIVOT.y);
@@ -102,9 +108,11 @@ export default defineMicrogame({
           const current = k === i && state === 'play';
           const st = k < i ? 'ok' : state === 'fail' && k === bad ? 'bad' : current ? 'next' : null;
           keyCap(x, 120, side < 0 ? 'left' : 'right', current ? 1.1 : 0.8, st);
-          if (current) ringTimer(x, 118, 64, 1 - since / limit());
+          if (current) ringTimer(x, 118, 64, 1 - since / window);
         });
         if (state === 'done') outlineText('K.O. !', PIVOT.x + 60, GY - 470, 64, '#ffe04a');
+        // The combo starts once the instruction is gone.
+        if (t > GAME.instructionMs && t < READY_MS + 350) outlineText(t < READY_MS ? 'PRÊT…' : 'GO !', 640, 290, 70, t < READY_MS ? '#fff' : '#ffe04a', 'center', 9);
       },
     };
   },

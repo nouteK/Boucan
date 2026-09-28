@@ -47,6 +47,8 @@ export interface MgContext {
   /** Real server time of the start of play (duels align on server timestamps). */
   readonly activeAt: number;
   serverNow(): number;
+  /** The player uses a touch screen right now: show on-screen buttons (see pad.ts) rather than key hints. */
+  readonly touch: boolean;
 }
 
 export interface MgInstance {

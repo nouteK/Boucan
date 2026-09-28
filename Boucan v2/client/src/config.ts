@@ -7,7 +7,6 @@ import type { ZoneId } from '@boucan/shared';
  */
 export const GAME = {
   title: 'BOUCAN',
-  subtitle: "L'école en folie · micro-jeux entre potes",
   /** Logical canvas size; everything is drawn in this space and scaled to the window. */
   width: 1280,
   height: 720,
@@ -23,12 +22,11 @@ export const GAME = {
   instructionMs: 950,
 } as const;
 
+/** Look of a world ("zone" in the contract) around the microgames: stage intro, interlude, jingle. */
 export interface ZoneTheme {
   name: string;
-  /** Main background colour of the interlude. */
-  bg: string;
-  /** Secondary colour (stripes, floor). */
-  accent: string;
+  /** Colour laid over the world's picture on the stage (keeps the screen and players readable). */
+  tint: string;
   /** Colour of the big counter. */
   counter: string;
   /** Short jingle notes (semitones from A4) played at each interlude. */
@@ -36,7 +34,8 @@ export interface ZoneTheme {
 }
 
 export const ZONE_THEMES: Record<ZoneId, ZoneTheme> = {
-  recre: { name: 'COUR DE RÉCRÉ', bg: '#2fb8ff', accent: '#2fd07a', counter: '#ffe04a', jingle: [0, 4, 7, 12, 7, 4] },
-  cantine: { name: 'CANTINE', bg: '#ff8a3d', accent: '#ffe6a8', counter: '#fff8e8', jingle: [0, 3, 7, 10, 7, 3] },
-  classe: { name: 'CLASSE', bg: '#8a5cff', accent: '#2e5b3f', counter: '#ffe04a', jingle: [0, 5, 9, 12, 9, 5] },
+  foret: { name: 'LA FORÊT', tint: 'rgba(30,18,70,.38)', counter: '#ffe04a', jingle: [0, 3, 7, 10, 7, 3] },
+  ville: { name: 'LA VILLE', tint: 'rgba(10,40,90,.28)', counter: '#ffe04a', jingle: [0, 4, 7, 12, 7, 4] },
+  neige: { name: 'LA NEIGE', tint: 'rgba(90,30,70,.3)', counter: '#fff8e8', jingle: [0, 5, 9, 12, 9, 5] },
+  futur: { name: 'LE FUTUR', tint: 'rgba(0,60,100,.28)', counter: '#ffe04a', jingle: [0, 2, 7, 11, 14, 11] },
 };

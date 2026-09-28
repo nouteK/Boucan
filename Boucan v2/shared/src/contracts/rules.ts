@@ -11,7 +11,7 @@ export const GAME_RULES = {
   defaultLives: 4,
   /** Lives can go above the start value (boss bonus) up to this cap. */
   maxLives: 6,
-  /** Match length = number of levels (each level = a series of microgames + a boss). */
+  /** Match length = number of levels (each level = a series of microgames, closed by a boss when the catalog has one). */
   lengthOptions: { court: 1, normal: 2, long: 3 },
   defaultLength: 'normal',
   nickname: {

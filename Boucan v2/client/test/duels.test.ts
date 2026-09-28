@@ -67,6 +67,8 @@ function playDuel(id: string, seed: number, players = PLAYERS) {
     shake: () => {},
     activeAt: 0,
     serverNow: () => now,
+    // Half the runs as on a phone: on-screen buttons drawn and hit-tested.
+    touch: seed % 2 === 0,
   };
   const instance = def.create(clientCtx);
   const r = createRng(seed * 13);

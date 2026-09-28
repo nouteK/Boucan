@@ -1,0 +1,88 @@
+{
+ "frames": {
+  "pp_a": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 378,
+    "h": 378
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9761904761904762
+   }
+  },
+  "pp_p": {
+   "frame": {
+    "x": 378,
+    "y": 0,
+    "w": 378,
+    "h": 378
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9761904761904762
+   }
+  },
+  "pp_f": {
+   "frame": {
+    "x": 756,
+    "y": 0,
+    "w": 378,
+    "h": 378
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9761904761904762
+   }
+  },
+  "pp_e": {
+   "frame": {
+    "x": 1134,
+    "y": 0,
+    "w": 378,
+    "h": 378
+   },
+   "anchor": {
+    "x": 0.5,
+    "y": 0.9761904761904762
+   }
+  }
+ },
+ "meta": {
+  "note": "Chien raquette de ping-pong (vu de dos, côté joueur). pp_a attente, pp_p armé, pp_f frappe, pp_e fin du geste. Ancre = pieds.",
+  "anims": {
+   "ping": {
+    "frames": [
+     {
+      "frame": "pp_a",
+      "ms": 1000
+     }
+    ],
+    "loop": true
+   },
+   "ping_ready": {
+    "frames": [
+     {
+      "frame": "pp_p",
+      "ms": 1000
+     }
+    ],
+    "loop": true
+   },
+   "ping_hit": {
+    "frames": [
+     {
+      "frame": "pp_f",
+      "ms": 90
+     },
+     {
+      "frame": "pp_e",
+      "ms": 130
+     }
+    ],
+    "next": "ping"
+   }
+  }
+ }
+}

@@ -5,6 +5,7 @@ import {
   type ClientPayload,
   type JsonValue,
   type MatchPhase,
+  type MicrogameInfo,
   type RoomEvent,
   type RoomSnapshot,
   type TypedPayload,
@@ -26,6 +27,8 @@ export interface HarnessOptions {
   config?: GameConfigOverrides;
   modules?: readonly MiniGameModule[];
   enabled?: string[] | null;
+  /** Microgame catalog (default: the shared one). */
+  catalog?: readonly MicrogameInfo[];
   /** RTT reported for every connection. */
   rtt?: number;
 }
@@ -53,7 +56,7 @@ export class Harness {
     this.rtt = options.rtt ?? 0;
     this.gateway = new Gateway({
       config: this.config,
-      registry: new MiniGameRegistry(options.modules ?? DUEL_MODULES, this.config.microgames.enabled),
+      registry: new MiniGameRegistry(options.modules ?? DUEL_MODULES, this.config.microgames.enabled, options.catalog),
       logger: silentLogger,
       serverVersion: 'test',
       environment: 'test',
@@ -242,8 +245,6 @@ export class TestClient {
       if (round.kind !== 'duel') {
         const outcome = this.mode === 'win' ? 'success' : this.mode === 'lose' ? 'failure' : hash(roundId + me) % 3 === 0 ? 'failure' : 'success';
         this.harness.schedule(this, Math.round(d * 0.5), () => this.send('minigame.report', { roundId, result: { outcome } }));
-      } else if (round.microgameId === 'course') {
-        for (let t = 60; t < d; t += 90) this.harness.schedule(this, t, () => this.send('minigame.input', { roundId, input: { type: 'tap' } }));
       }
       return;
     }

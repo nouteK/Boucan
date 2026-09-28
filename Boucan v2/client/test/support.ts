@@ -38,7 +38,7 @@ export interface Harnessed {
   clock: { t: number };
 }
 
-export function harness(id: string, seed: number, level: number, players = PLAYERS): Harnessed {
+export function harness(id: string, seed: number, level: number, players = PLAYERS, touch = false): Harnessed {
   const info = microgameInfo(id)!;
   const def = MICROGAME_DEFS.find((d) => d.id === id)!;
   let outcome: 'success' | 'failure' | null = null;
@@ -63,6 +63,7 @@ export function harness(id: string, seed: number, level: number, players = PLAYE
     shake: () => {},
     activeAt: 0,
     serverNow: () => clock.t,
+    touch,
   };
   return { ctx, instance: def.create(ctx), outcome: () => outcome, sent, clock };
 }

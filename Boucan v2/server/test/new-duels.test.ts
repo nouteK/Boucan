@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { shotTier } from '../src/engine/minigames/modules/gardien';
+import { ballX, PING } from '../src/engine/minigames/modules/ping';
+import { jumpMs, ropePeriod, SAUTER, sweepTime } from '../src/engine/minigames/modules/sauter';
 import { Harness, setupRoom, type TestClient } from './harness';
 
-/** Duels integrated from the OUAF WARE prototype (see docs/adr/0012-nouveaux-mini-jeux.md). */
-const NEW_DUELS = ['cristal', 'boules', 'glace', 'corde', 'radeau', 'boxe', 'soleil', 'roi', 'gardien', 'noir'];
+/** Duels of the OUAF WARE prototype (see docs/adr/0012 and 0013); patate and degaine are in duels.test.ts. */
+const NEW_DUELS = ['soleil', 'roi', 'gardien', 'sauter', 'ping', 'corde', 'radeau', 'boxe'];
 
 let harness: Harness;
 afterEach(() => harness?.dispose());
@@ -30,7 +32,7 @@ function outcomes(c: TestClient): Record<string, string> {
 
 const input = (c: TestClient, roundId: string, payload: Record<string, unknown>) => c.send('minigame.input', { roundId, input: payload as never });
 
-describe('new duels: rounds full of bots always reach a clean verdict', () => {
+describe('duels: rounds full of bots always reach a clean verdict', () => {
   for (const id of NEW_DUELS) {
     it(id, () => {
       for (const seed of [1, 7, 42]) {
@@ -48,61 +50,6 @@ describe('new duels: rounds full of bots always reach a clean verdict', () => {
       }
     });
   }
-});
-
-describe('cristal (last crystal)', () => {
-  it('an early grab loses; the fastest get the crystals; empty hands lose', () => {
-    harness = duelHarness('cristal');
-    const { host, players } = setupRoom(harness, 3);
-    host.ok('match.start');
-    const round = toMicrogame(harness, host);
-    input(players[0]!, round.roundId, { type: 'grab' });
-    harness.advanceUntil(() => host.minigameEvents().some((e) => e.type === 'open'));
-    harness.advance(200);
-    input(players[1]!, round.roundId, { type: 'grab' });
-    harness.advanceUntil(() => host.phase === 'VERDICT');
-    const byId = outcomes(host);
-    expect(byId[players[0]!.playerId!]).toBe('failure');
-    expect(byId[players[1]!.playerId!]).toBe('success');
-    expect(byId[players[2]!.playerId!]).toBe('failure');
-  });
-});
-
-describe('boules (snowball fight)', () => {
-  it('ducking before each impact dodges everything; the most hit loses', () => {
-    harness = duelHarness('boules');
-    const { host, players } = setupRoom(harness, 2);
-    host.ok('match.start');
-    const round = toMicrogame(harness, host);
-    harness.advance(harness.tickMs);
-    const { impacts } = stateOf<{ impacts: number[] }>(host);
-    for (const impact of impacts) {
-      harness.advanceUntil(() => harness.now >= impact - 200);
-      input(players[0]!, round.roundId, { type: 'duck' });
-    }
-    harness.advanceUntil(() => host.phase === 'VERDICT');
-    const dodges = host.minigameEvents().filter((e) => e.type === 'dodge' && e.playerId === players[0]!.playerId);
-    expect(dodges).toHaveLength(impacts.length);
-    expect(outcomes(host)).toEqual({ [players[0]!.playerId!]: 'success', [players[1]!.playerId!]: 'failure' });
-  });
-});
-
-describe('glace (ice race)', () => {
-  it('pushing too hard makes you slip; a steady skater finishes first', () => {
-    harness = duelHarness('glace');
-    const { host, players } = setupRoom(harness, 2);
-    host.ok('match.start');
-    const round = toMicrogame(harness, host);
-    for (let i = 0; i < 12; i++) input(players[1]!, round.roundId, { type: 'push' });
-    harness.advance(harness.tickMs);
-    expect(host.minigameEvents().some((e) => e.type === 'slip' && e.playerId === players[1]!.playerId)).toBe(true);
-    for (let t = 0; t < 7000 && host.phase === 'MICROGAME'; t += 250) {
-      input(players[0]!, round.roundId, { type: 'push' });
-      harness.advance(250);
-    }
-    harness.advanceUntil(() => host.phase === 'VERDICT');
-    expect(outcomes(host)[players[0]!.playerId!]).toBe('success');
-  });
 });
 
 describe('corde (tug of war)', () => {
@@ -214,38 +161,6 @@ describe('soleil (red light, green light)', () => {
   });
 });
 
-describe('roi (king of the hill)', () => {
-  it('the king knocks back a climber in reach, unless they hold on', () => {
-    harness = duelHarness('roi');
-    const { host, players } = setupRoom(harness, 2);
-    host.ok('match.start');
-    const round = toMicrogame(harness, host);
-    harness.advance(harness.tickMs);
-    const { king, climbers } = stateOf<{ king: string; climbers: Record<string, { side: -1 | 1; height: number }> }>(host);
-    const kingC = players.find((p) => p.playerId === king)!;
-    const climber = players.find((p) => p.playerId !== king)!;
-    const side = climbers[climber.playerId!]!.side;
-    const height = () => stateOf<{ climbers: Record<string, { height: number }> }>(host).climbers[climber.playerId!]!.height;
-    for (let i = 0; height() < 0.75; i++) {
-      input(climber, round.roundId, { type: 'climb', side: i % 2 ? 1 : -1 });
-      harness.advance(60);
-    }
-    const before = height();
-    input(climber, round.roundId, { type: 'hold', on: true });
-    harness.advance(200);
-    input(kingC, round.roundId, { type: 'strike', side });
-    harness.advance(400);
-    expect(host.minigameEvents().some((e) => e.type === 'held')).toBe(true);
-    expect(height()).toBeGreaterThan(before - 0.1);
-    input(climber, round.roundId, { type: 'hold', on: false });
-    harness.advance(600);
-    input(kingC, round.roundId, { type: 'strike', side });
-    harness.advance(400);
-    expect(host.minigameEvents().some((e) => e.type === 'knock')).toBe(true);
-    expect(height()).toBeLessThan(before - 0.3);
-  });
-});
-
 describe('gardien (penalties)', () => {
   it('shot tiers follow the power bar', () => {
     expect(shotTier(0.2)).toBe('weak');
@@ -276,25 +191,134 @@ describe('gardien (penalties)', () => {
   });
 });
 
-describe('noir (hide and seek)', () => {
-  it('the hunter catches a prey right in front of them', () => {
-    harness = duelHarness('noir');
+describe('roi (king of the hill)', () => {
+  type Roi = { king: string; bombs: { z: number }[]; climbers: Record<string, { x: number; z: number; stun: boolean }> };
+
+  it('a bomb knocks a climber standing in its way down the slope', () => {
+    harness = duelHarness('roi');
     const { host, players } = setupRoom(harness, 2);
     host.ok('match.start');
     const round = toMicrogame(harness, host);
     harness.advance(harness.tickMs);
-    const s = stateOf<{ hunter: string; players: Record<string, { x: number }> }>(host);
-    const hunter = players.find((p) => p.playerId === s.hunter)!;
-    const prey = players.find((p) => p.playerId !== s.hunter)!;
-    const pos = () => stateOf<{ players: Record<string, { x: number }> }>(host).players;
-    const dir = pos()[prey.playerId!]!.x > pos()[hunter.playerId!]!.x ? 1 : -1;
-    input(hunter, round.roundId, { type: 'move', dir });
-    harness.advanceUntil(() => Math.abs(pos()[prey.playerId!]!.x - pos()[hunter.playerId!]!.x) < 90, 8000);
-    input(hunter, round.roundId, { type: 'move', dir: 0 });
-    input(hunter, round.roundId, { type: 'grab' });
-    harness.advance(300);
-    expect(host.minigameEvents().some((e) => e.type === 'caught' && e.playerId === prey.playerId)).toBe(true);
+    const king = players.find((p) => p.playerId === stateOf<Roi>(host).king)!;
+    const climber = players.find((p) => p !== king)!;
+    harness.advance(1000);
+    input(king, round.roundId, { type: 'throw' });
+    harness.advanceUntil(() => host.minigameEvents().some((e) => e.type === 'hit'), 3000);
+    const c = stateOf<Roi>(host).climbers[climber.playerId!]!;
+    expect(c.stun).toBe(true);
+    expect(c.z).toBeLessThan(3);
+  });
+
+  it('a climber who steers away dodges, and reaching the summit dethrones the king', () => {
+    harness = duelHarness('roi');
+    const { host, players } = setupRoom(harness, 2);
+    host.ok('match.start');
+    const round = toMicrogame(harness, host);
+    harness.advance(harness.tickMs);
+    const king = players.find((p) => p.playerId === stateOf<Roi>(host).king)!;
+    const climber = players.find((p) => p !== king)!;
+    harness.advance(1000);
+    input(king, round.roundId, { type: 'throw' });
+    input(climber, round.roundId, { type: 'move', dir: 1 });
     harness.advanceUntil(() => host.phase === 'VERDICT');
-    expect(outcomes(host)).toEqual({ [prey.playerId!]: 'failure', [hunter.playerId!]: 'success' });
+    expect(host.minigameEvents().some((e) => e.type === 'hit')).toBe(false);
+    expect(host.minigameEvents().some((e) => e.type === 'summit')).toBe(true);
+    expect(outcomes(host)).toEqual({ [climber.playerId!]: 'success', [king.playerId!]: 'failure' });
+  });
+
+  it('only the king throws', () => {
+    harness = duelHarness('roi');
+    const { host, players } = setupRoom(harness, 3);
+    host.ok('match.start');
+    const round = toMicrogame(harness, host);
+    harness.advance(harness.tickMs);
+    const climber = players.find((p) => p.playerId !== stateOf<Roi>(host).king)!;
+    expect(climber.request('minigame.input', { roundId: round.roundId, input: { type: 'throw' } })).toMatchObject({
+      ok: false,
+      error: { code: 'INPUT_REJECTED', details: { reason: 'notKing' } },
+    });
+  });
+});
+
+describe('sauter (jump rope)', () => {
+  type Sauter = { start: number; out: Record<string, number>; winners: string[] | null };
+  /** Jump so that the rope sweeps under you at the top of the jump. */
+  const jumpFor = (sweep: number) => sweepTime(sweep) - jumpMs(ropePeriod(sweep)) / 2;
+
+  it('whoever is on the ground when the rope sweeps is out; the last one jumping wins', () => {
+    harness = duelHarness('sauter');
+    const { host, players } = setupRoom(harness, 2);
+    host.ok('match.start');
+    const round = toMicrogame(harness, host);
+    harness.advance(harness.tickMs);
+    const { start } = stateOf<Sauter>(host);
+    harness.advance(start + jumpFor(0) - harness.now);
+    input(players[0]!, round.roundId, { type: 'jump' });
+    harness.advanceUntil(() => host.phase === 'VERDICT');
+    expect(host.minigameEvents().find((e) => e.type === 'out')).toMatchObject({ playerIds: [players[1]!.playerId], turn: 0 });
+    expect(outcomes(host)).toEqual({ [players[0]!.playerId!]: 'success', [players[1]!.playerId!]: 'failure' });
+  });
+
+  it('a jump that lands before the rope arrives does not count; knocked out together = tied winners', () => {
+    harness = duelHarness('sauter');
+    const { host, players } = setupRoom(harness, 2);
+    host.ok('match.start');
+    const round = toMicrogame(harness, host);
+    harness.advance(harness.tickMs);
+    const { start } = stateOf<Sauter>(host);
+    harness.advance(start - harness.now);
+    for (const p of players) input(p, round.roundId, { type: 'jump' });
+    harness.advanceUntil(() => host.phase === 'VERDICT');
+    expect(stateOf<Sauter>(host).winners?.sort()).toEqual(players.map((p) => p.playerId!).sort());
+    expect(Object.values(outcomes(host))).toEqual(['success', 'success']);
+  });
+
+  it('the rope speeds up every turn, down to its fastest period', () => {
+    expect(ropePeriod(1)).toBeLessThan(ropePeriod(0));
+    expect(ropePeriod(40)).toBe(SAUTER.minPeriod);
+    expect(sweepTime(1) - sweepTime(0)).toBe(ropePeriod(1));
+  });
+});
+
+describe('ping (ping-pong)', () => {
+  type Ping = { matches: { ids: [string, string | null]; ball: { from: 0 | 1; x0: number; x1: number; t0: number; d: number } | null; winner: 0 | 1 | null }[] };
+
+  it('an unreturned ball is a point for the hitter; first to 2 wins the match', () => {
+    harness = duelHarness('ping');
+    const { host } = setupRoom(harness, 2);
+    host.ok('match.start');
+    toMicrogame(harness, host);
+    harness.advanceUntil(() => host.phase === 'VERDICT');
+    expect(host.minigameEvents().filter((e) => e.type === 'point')).toHaveLength(3);
+    expect(host.minigameEvents().filter((e) => e.type === 'won')).toHaveLength(1);
+    expect(Object.values(outcomes(host)).sort()).toEqual(['failure', 'success']);
+  });
+
+  it('a swing in reach and on time sends the ball back (perfect timing = smash)', () => {
+    harness = duelHarness('ping');
+    const { host, players } = setupRoom(harness, 2);
+    host.ok('match.start');
+    const round = toMicrogame(harness, host);
+    harness.advanceUntil(() => stateOf<Ping>(host).matches[0]!.ball !== null);
+    const m = stateOf<Ping>(host).matches[0]!;
+    const b = m.ball!;
+    const receiver = players.find((p) => p.playerId === m.ids[b.from === 0 ? 1 : 0])!;
+    harness.advance(Math.round(b.t0 + b.d * PING.smashAt - harness.now));
+    input(receiver, round.roundId, { type: 'swing', px: ballX(b as never, harness.now), x1: 0.5 });
+    expect(host.minigameEvents().find((e) => e.type === 'hit')).toMatchObject({ side: b.from === 0 ? 1 : 0, smash: true });
+    harness.advance(60);
+    expect(stateOf<Ping>(host).matches[0]!.ball!.from).toBe(b.from === 0 ? 1 : 0);
+  });
+
+  it('an odd player faces the house bot; everyone gets a result', () => {
+    harness = duelHarness('ping');
+    const { host } = setupRoom(harness, 1, { bots: 2 });
+    host.ok('match.start');
+    toMicrogame(harness, host);
+    harness.advance(harness.tickMs);
+    expect(stateOf<Ping>(host).matches.map((m) => m.ids.includes(null))).toEqual([false, true]);
+    harness.advanceUntil(() => host.phase === 'VERDICT');
+    expect(host.snapshot.match.verdict!.entries).toHaveLength(3);
   });
 });

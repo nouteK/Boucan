@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createBoucanServer, loadSettings, type BoucanServer } from '@boucan/server/node';
 import { silentLogger } from '@boucan/server';
+import { PROTOCOL_VERSION } from '@boucan/shared';
 import { BoucanClient, BoucanError, phaseProgress, type RoomSnapshot } from '../src';
 import { BotPlayer, createLocalGame, type LocalGame } from '../src/local';
 
@@ -55,7 +56,7 @@ describe('WebSocket end-to-end', () => {
     const client = new BoucanClient({ url, clientName: 'e2e' });
     cleanup.push(() => client.disconnect());
     const info = await client.connect();
-    expect(info.protocolVersion).toBe(2);
+    expect(info.protocolVersion).toBe(PROTOCOL_VERSION);
     expect(client.clock.synced).toBe(true);
 
     const { snapshot } = await client.createRoom({ nickname: 'Testeur', config: { length: 'court', lives: 3 } });
@@ -124,7 +125,7 @@ describe('WebSocket end-to-end', () => {
     const url = await startServer();
     const http = url.replace('ws://', 'http://').replace('/ws', '');
     const health = await (await fetch(`${http}/health`)).json();
-    expect(health).toMatchObject({ status: 'ok', protocolVersion: 2 });
+    expect(health).toMatchObject({ status: 'ok', protocolVersion: PROTOCOL_VERSION });
     const info = await (await fetch(`${http}/api/info`)).json();
     expect(info.microgames.length).toBeGreaterThan(10);
   });

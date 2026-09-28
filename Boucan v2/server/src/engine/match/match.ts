@@ -63,11 +63,12 @@ interface CurrentRound {
  * The WarioWare match state machine (see shared/src/contracts/phases.ts).
  *
  * A level = `gamesPerLevel` microgames (a duel every `duelEvery`, when ≥ 2
- * players are alive) then a boss. Speed-ups every `speedUpEvery` games; after
- * a boss the level rises (harder microgames) and the tempo restarts a bit
- * higher. Fail = −1 life; boss won = +1 life. 0 lives = eliminated (the
- * player keeps playing as a ghost, for fun). The stage ends when one player
- * is left (multiplayer), when the solo player is out, or after the last boss.
+ * players are alive), then a boss when the catalog has one. Speed-ups every
+ * `speedUpEvery` games; at the end of a level the level rises (harder
+ * microgames) and the tempo restarts a bit higher. Fail = −1 life; boss won =
+ * +1 life. 0 lives = eliminated (the player keeps playing as a ghost, for
+ * fun). The stage ends when one player is left (multiplayer), when the solo
+ * player is out, or after the last level.
  *
  * Deadline-driven transitions start the next phase at the deadline itself, so
  * the timeline announced to clients never drifts with the tick.
@@ -78,8 +79,8 @@ export class Match {
   private phaseEndsAt: number | null = null;
   private matchId: string | null = null;
   private rng: Rng = createRng(0);
-  private stageZone: ZoneId | 'mix' = 'recre';
-  private zone: ZoneId = 'recre';
+  private stageZone: ZoneId | 'mix' = 'ville';
+  private zone: ZoneId = 'ville';
   private level = 1;
   private levels = 1;
   private tempo = 1;
@@ -123,7 +124,7 @@ export class Match {
       phase: this.phase,
       phaseStartedAt: this.phaseStartedAt,
       phaseEndsAt: this.phaseEndsAt,
-      zone: this.inProgress ? this.zone : config.zone === 'mix' ? 'recre' : config.zone,
+      zone: this.inProgress ? this.zone : config.zone === 'mix' ? 'ville' : config.zone,
       level: this.level,
       levels: this.inProgress ? this.levels : GAME_RULES.lengthOptions[config.length],
       tempo: this.tempo,
@@ -359,7 +360,9 @@ export class Match {
     }
     this.verdict = { roundId: c.public.roundId, index: c.public.index, microgameId: c.public.microgameId, kind, entries };
 
-    if (kind === 'boss') {
+    // A level ends with its boss, or right after its microgames when no boss is enabled.
+    const hasBoss = this.host.registry.enabled().some((m) => m.kind === 'boss');
+    if (kind === 'boss' || (!hasBoss && this.gamesInLevel + 1 >= this.host.config.rhythm.gamesPerLevel)) {
       this.level += 1;
       this.gamesInLevel = 0;
       this.pendingLevelUp = this.level <= this.levels;

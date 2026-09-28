@@ -324,3 +324,58 @@ export function sign(x: number, y: number, text: string, fill = '#ffe04a', size 
   box(x - w / 2, y - size * 0.8, w, size * 1.6, fill, 7, 14);
   outlineText(text, x, y + 2, size, INK, 'center', 0);
 }
+
+/** Speckled egg, standing on (x, y). */
+export function egg(x: number, y: number, s = 1, rot = 0): void {
+  const c = g();
+  c.save();
+  c.translate(x, y);
+  c.rotate(rot);
+  c.scale(s, s);
+  ellipse(0, -46, 38, 48, '#fff3d6', 7);
+  for (const [a, b, r] of [[-14, -62, 9], [15, -42, 7], [-6, -22, 6], [16, -74, 5]] as const) circle(a, b, r, '#8a5cff', 0);
+  ellipse(-16, -70, 6, 12, 'rgba(255,255,255,.7)', 0, -0.4);
+  c.restore();
+}
+
+/** Round potion flask, standing on (x, y); `fill` 0..1 of liquid. */
+export function potion(x: number, y: number, s = 1, fill = 0, col = '#35e0ff'): void {
+  const c = g();
+  c.save();
+  c.translate(x, y);
+  c.scale(s, s);
+  circle(0, -40, 38, 'rgba(220,240,255,.55)', 0);
+  if (fill > 0) {
+    c.save();
+    c.beginPath();
+    c.arc(0, -40, 38, 0, Math.PI * 2);
+    c.clip();
+    c.fillStyle = col;
+    c.fillRect(-40, -2 - 76 * fill, 80, 80);
+    c.restore();
+  }
+  circle(0, -40, 38, 'rgba(0,0,0,0)', 6);
+  box(-12, -104, 24, 30, 'rgba(220,240,255,.8)', 6, 0);
+  box(-15, -116, 30, 14, '#a9562a', 6, 0);
+  ellipse(-14, -54, 6, 12, 'rgba(255,255,255,.7)', 0, -0.5);
+  c.restore();
+}
+
+/** Hovering drone with spinning rotors, centred on (x, y). */
+export function drone(x: number, y: number, t: number, tilt = 0, s = 1): void {
+  const c = g();
+  c.save();
+  c.translate(x, y);
+  c.rotate(tilt);
+  c.scale(s, s);
+  box(-70, -26, 140, 52, '#ffd23c', 6, 26);
+  circle(0, 0, 14, '#3fb8ff', 6);
+  for (const px of [-70, 70]) {
+    c.fillStyle = INK;
+    c.fillRect(px - 3, -44, 6, 20);
+    const w = 34 * Math.abs(Math.sin(t / 30));
+    c.fillStyle = 'rgba(22,22,22,.55)';
+    c.fillRect(px - w, -48, w * 2, 6);
+  }
+  c.restore();
+}

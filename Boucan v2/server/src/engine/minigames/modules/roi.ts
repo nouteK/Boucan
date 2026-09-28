@@ -1,77 +1,106 @@
 import { z } from 'zod';
 import { defineMiniGame, reject, type RoundOutcome } from '../api';
-import { Alternation, Side } from '../kits/duel';
 
 /**
  * DUEL « Le roi de la colline » — one player (drawn at random) is the king on
- * the summit; the others climb both slopes by pressing left, right, left…
- * The king strikes one slope at a time (after a short wind-up everyone can
- * see): climbers near the top on that side tumble halfway down — unless they
- * were holding on (hold) when it landed. A climber reaching the summit
- * dethrones the king; if nobody does in time, the king wins.
+ * the summit; the others climb the slope on their own and only steer left /
+ * right. The king moves along the crest and throws bombs that roll down: a
+ * climber hit tumbles 5 m down and is stunned for a moment. A climber
+ * reaching the summit dethrones the king (every climber wins); if nobody does
+ * in time, the king wins.
  *
- * State : { king, strike: { side, at, phase: 'wind' | 'hit' } | null, climbers: { [id]: { side, height 0..1, stunned, holding } }, result: 'king' | 'climbers' | null }
- * Events: { type: 'windup', side }, { type: 'knock', playerId }, { type: 'held', playerId }, { type: 'summit', playerId }
+ * Lateral moves are lag-compensated (applied from the input's time), so what
+ * a player steers is where the server has them.
+ *
+ * State : { king, kx, kdir, ready, bombs: [{ id, x, z, dx }], climbers: { [id]: { x, z, dir, stun } }, result: 'king' | 'climbers' | null }
+ *   x ∈ [−W, W] across the slope, z ∈ [0, L] up the slope (metres); dir / dx = lateral speed factors, so clients
+ *   extrapolate between states (climbers climb at ROI.climb, ×1.2 when alone; bombs roll at ROI.bombSpeed).
+ * Events: { type: 'throw' }, { type: 'hit', playerId }, { type: 'summit', playerId }
  */
-const Input = z.union([
-  z.object({ type: z.literal('climb'), side: Side }),
-  z.object({ type: z.literal('hold'), on: z.boolean() }),
-  z.object({ type: z.literal('strike'), side: Side }),
-]);
-const P = {
-  climb: 0.03,
-  /** Climbers above this height are within reach of the king. */
-  reach: 0.68,
-  knock: 0.5,
-  heldKnock: 0.05,
-  /** Holding must have started this long before the blow lands. */
-  holdMs: 120,
-  windMs: 240,
-  recoverMs: 200,
-  cooldownMs: 380,
-  stunMs: 400,
-  showMs: 1200,
+const Dir = z.union([z.literal(-1), z.literal(0), z.literal(1)]);
+const Input = z.union([z.object({ type: z.literal('move'), dir: Dir }), z.object({ type: z.literal('throw') })]);
+export const ROI = {
+  /** Length and half width of the slope (m). */
+  L: 20,
+  W: 3,
+  /** Lateral speed, climbing speed, bomb speed down the slope (m/s). */
+  move: 4.2,
+  climb: 2.3,
+  bombSpeed: 11,
+  /** Throw cooldown (ms) × factor by number of climbers (index = min(3, climbers)). */
+  cooldownMs: 650,
+  cooldownFactor: [1, 2.6, 1, 0.6],
+  firstThrowMs: 900,
+  knock: 5,
+  stunMs: 550,
+  /** Hit box of a bomb around a climber (m). */
+  hitX: 0.75,
+  hitZ: 0.6,
+  showMs: 1300,
 };
-/** Climb boost when there are few climbers (index = number of climbers). */
-const FEW_CLIMBERS = [1, 1.7, 1.05];
+const P = ROI;
+const clampX = (x: number) => Math.max(-P.W, Math.min(P.W, x));
+const r2 = (x: number) => Math.round(x * 100) / 100;
+
+interface Mover {
+  x: number;
+  dir: number;
+  bot: boolean;
+  skill: number;
+}
+interface Climber extends Mover {
+  z: number;
+  stunUntil: number;
+  /** Bot: bomb being dodged, reaction delay, when it was seen, dodge direction. */
+  threat: number;
+  react: number;
+  since: number;
+  away: number;
+}
 
 export const roi = defineMiniGame<z.infer<typeof Input>>({
   id: 'roi',
-  input: { schema: Input, ratePerSecond: 20 },
+  input: { schema: Input, ratePerSecond: 25 },
   acceptsReports: false,
   stateHz: 20,
   start(ctx) {
     const king = ctx.rng.pick(ctx.participants);
-    const climberIds = ctx.rng.shuffle(ctx.participants.filter((id) => id !== king));
-    const boost = FEW_CLIMBERS[climberIds.length] ?? 1;
-    const climbers = new Map(
-      climberIds.map((id, i) => [id, { side: (i % 2 ? 1 : -1) as Side, height: 0, stunUntil: 0, holdSince: null as number | null }]),
+    const ids = ctx.rng.shuffle(ctx.participants.filter((id) => id !== king));
+    const n = ids.length;
+    const climbers = new Map<string, Climber>(
+      ids.map((id, i) => [
+        id,
+        { x: clampX((i - (n - 1) / 2) * 1.6), z: 0, dir: 0, stunUntil: 0, bot: ctx.isBot(id), skill: ctx.skillOf(id), threat: -1, react: 0, since: 0, away: 0 },
+      ]),
     );
-    const alternation = new Alternation();
-    let strike: { side: Side; at: number; phase: 'wind' | 'hit' } | null = null;
-    let readyAt = ctx.activeAt + 700;
+    const cooldown = P.cooldownMs * (P.cooldownFactor[Math.min(3, n)] ?? 1);
+    const ruler: Mover & { readyAt: number; aimError: number } = {
+      x: 0,
+      dir: 0,
+      bot: ctx.isBot(king),
+      skill: ctx.skillOf(king),
+      readyAt: ctx.activeAt + P.firstThrowMs,
+      aimError: 0,
+    };
+    let bombs: { id: number; x: number; z: number; drift: number }[] = [];
+    let nextBomb = 1;
     let result: 'king' | 'climbers' | null = null;
     let resultAt = 0;
     let last = ctx.activeAt;
-    const kingBot = ctx.isBot(king);
-    const kingSkill = ctx.skillOf(king);
-    let kingPlan: { side: Side; at: number } | null = null;
-    const bots = climberIds
-      .filter((id) => ctx.isBot(id))
-      .map((id) => ({ id, skill: ctx.skillOf(id), next: ctx.activeAt + ctx.rng.range(0, 200), strikeSeen: -1, reaction: 0, letGo: 0 }));
 
     const publish = (now: number) =>
       ctx.setState({
         king,
-        strike,
-        climbers: Object.fromEntries(
-          [...climbers].map(([id, c]) => [id, { side: c.side, height: c.height, stunned: now < c.stunUntil, holding: c.holdSince !== null }]),
-        ),
+        kx: r2(ruler.x),
+        kdir: ruler.dir,
+        ready: now >= ruler.readyAt,
+        bombs: bombs.map((b) => ({ id: b.id, x: r2(b.x), z: r2(b.z), dx: r2(b.drift) })),
+        climbers: Object.fromEntries([...climbers].map(([id, c]) => [id, { x: r2(c.x), z: r2(c.z), dir: c.dir, stun: now < c.stunUntil }])),
         result,
       });
     publish(ctx.activeAt);
 
-    const outcomeOf = (id: string): RoundOutcome => (id === king ? (result === 'climbers' ? 'failure' : 'success') : result === 'climbers' ? 'success' : 'failure');
+    const outcomeOf = (id: string): RoundOutcome => ((id === king) === (result !== 'climbers') ? 'success' : 'failure');
     const finish = (r: 'king' | 'climbers', now: number) => {
       if (result) return;
       result = r;
@@ -79,35 +108,62 @@ export const roi = defineMiniGame<z.infer<typeof Input>>({
       for (const id of ctx.participants) ctx.settle(id, outcomeOf(id));
     };
 
-    const climb = (id: string, side: Side, now: number) => {
-      const c = climbers.get(id)!;
-      if (result || now < c.stunUntil || c.holdSince !== null || !alternation.accept(id, side)) return;
-      c.height = Math.min(1, c.height + P.climb * boost);
-      if (c.height >= 1) {
-        ctx.emit({ type: 'summit', playerId: id });
-        finish('climbers', now);
+    /** A bomb thrown at `at` (lag-compensated) has already rolled a bit. */
+    const throwBomb = (now: number, at: number) => {
+      if (result || now < ruler.readyAt) return;
+      ruler.readyAt = now + cooldown;
+      bombs.push({ id: nextBomb++, x: ruler.x, z: P.L - (P.bombSpeed * (now - at)) / 1000, drift: ctx.rng.range(-0.4, 0.4) });
+      ctx.emit({ type: 'throw' });
+    };
+    /** Changes a lateral direction as if it had happened at `at` (lag compensation). */
+    const steer = (m: Mover, dir: number, now: number, at: number, frozen: boolean) => {
+      if (!frozen) m.x = clampX(m.x + ((dir - m.dir) * P.move * (now - at)) / 1000);
+      m.dir = dir;
+    };
+    /** Something with a per-frame (60 Hz) probability `p` happens during `dt` ms. */
+    const perFrame = (p: number, dt: number) => ctx.rng.chance(1 - (1 - p) ** (dt / 16.7));
+
+    const botKing = (now: number, dt: number) => {
+      const all = [...climbers.values()];
+      const target = all.filter((c) => now >= c.stunUntil).sort((a, b) => b.z - a.z)[0] ?? all[0];
+      if (!target) return;
+      if (ruler.aimError === 0 || perFrame(0.01, dt)) ruler.aimError = ctx.rng.range(-1, 1) * (0.2 + 1.1 * (1 - ruler.skill)) || 0.01;
+      const tx = target.x + ruler.aimError;
+      ruler.dir = Math.abs(tx - ruler.x) > 0.15 ? Math.sign(tx - ruler.x) : 0;
+      if (Math.abs(tx - ruler.x) < 0.5 && perFrame(0.05, dt)) throwBomb(now, now);
+    };
+    const botClimber = (c: Climber, now: number) => {
+      if (now < c.stunUntil) {
+        c.dir = 0;
+        return;
       }
-    };
-    const hold = (id: string, on: boolean, now: number) => {
-      const c = climbers.get(id)!;
-      c.holdSince = on && now >= c.stunUntil ? (c.holdSince ?? now) : null;
-    };
-    const startStrike = (side: Side, now: number) => {
-      if (result || strike || now < readyAt) return;
-      strike = { side, at: now, phase: 'wind' };
-      ctx.emit({ type: 'windup', side });
+      const reach = 4 + 6 * c.skill;
+      const threat = bombs.find((b) => b.z > c.z && b.z - c.z < reach && Math.abs(b.x - c.x) < 1.1);
+      if (threat) {
+        if (c.threat !== threat.id) {
+          c.threat = threat.id;
+          c.react = ctx.rng.range(80, 300) * (1.6 - c.skill);
+          c.since = now;
+          c.away = threat.x > c.x ? -1 : 1;
+          if (Math.abs(c.x) > P.W - 0.8) c.away = -Math.sign(c.x);
+        }
+        c.dir = now - c.since > c.react ? c.away : 0;
+      } else c.dir = Math.abs(c.x) > 0.6 ? -Math.sign(c.x) * 0.5 : 0;
     };
 
     return {
       onInput(playerId, input, { now, at }) {
-        if (input.type === 'strike') {
+        if (result) return reject('over');
+        if (input.type === 'throw') {
           if (playerId !== king) return reject('notKing');
-          startStrike(input.side, now);
+          throwBomb(now, at);
           return;
         }
-        if (playerId === king) return reject('king');
-        if (input.type === 'climb') climb(playerId, input.side, now);
-        else hold(playerId, input.on, at);
+        if (playerId === king) steer(ruler, input.dir, now, at, false);
+        else {
+          const c = climbers.get(playerId);
+          if (c) steer(c, input.dir, now, at, now < c.stunUntil);
+        }
       },
       onTick(now) {
         const dt = Math.max(0, now - last);
@@ -116,62 +172,34 @@ export const roi = defineMiniGame<z.infer<typeof Input>>({
           publish(now);
           return;
         }
-        // The blow lands.
-        if (strike?.phase === 'wind' && now >= strike.at + P.windMs) {
-          strike = { ...strike, at: now, phase: 'hit' };
+        const s = dt / 1000;
+        if (ruler.bot) botKing(now, dt);
+        ruler.x = clampX(ruler.x + ruler.dir * P.move * s);
+        for (const [id, c] of climbers) {
+          if (c.bot) botClimber(c, now);
+          if (now < c.stunUntil) continue;
+          c.x = clampX(c.x + c.dir * P.move * s);
+          c.z = Math.min(P.L, c.z + P.climb * s * (n === 1 ? 1.2 : 1));
+          if (c.z >= P.L) {
+            ctx.emit({ type: 'summit', playerId: id });
+            finish('climbers', now);
+            break;
+          }
+        }
+        for (const b of bombs) {
+          b.z -= P.bombSpeed * s;
+          b.x = clampX(b.x + b.drift * s);
           for (const [id, c] of climbers) {
-            if (c.side !== strike.side || c.height < P.reach) continue;
-            if (c.holdSince !== null && now - c.holdSince >= P.holdMs) {
-              c.height = Math.max(0, c.height - P.heldKnock);
-              ctx.emit({ type: 'held', playerId: id });
-            } else {
-              c.height = Math.max(0, c.height - P.knock);
+            if (b.z < -50 || now < c.stunUntil) continue;
+            if (Math.abs(b.z - c.z) < P.hitZ && Math.abs(b.x - c.x) < P.hitX) {
+              b.z = -99;
+              c.z = Math.max(0, c.z - P.knock);
               c.stunUntil = now + P.stunMs;
-              c.holdSince = null;
-              ctx.emit({ type: 'knock', playerId: id });
+              ctx.emit({ type: 'hit', playerId: id });
             }
           }
-        } else if (strike?.phase === 'hit' && now >= strike.at + P.recoverMs) {
-          strike = null;
-          readyAt = now + P.cooldownMs;
         }
-        // Bot king: strikes the side with climbers in reach, sometimes at random.
-        if (kingBot && !strike && now >= readyAt) {
-          if (!kingPlan) {
-            const inReach = (s: Side) => [...climbers.values()].filter((c) => c.side === s && c.height > P.reach - 0.04 && c.holdSince === null).length;
-            const l = inReach(-1);
-            const r = inReach(1);
-            if (l || r || ctx.rng.chance(0.004 * dt)) {
-              const side: Side = l === r ? (ctx.rng.chance(0.5) ? -1 : 1) : l > r ? -1 : 1;
-              kingPlan = { side, at: now + ctx.rng.range(60, 260) * (1.7 - kingSkill) };
-            }
-          } else if (now >= kingPlan.at) {
-            startStrike(kingPlan.side, now);
-            kingPlan = null;
-          }
-        }
-        // Bot climbers: climb steadily, hold on when a blow comes their way.
-        for (const bot of bots) {
-          const c = climbers.get(bot.id)!;
-          const danger = strike?.phase === 'wind' && strike.side === c.side && c.height >= P.reach - 0.05;
-          if (danger) {
-            if (bot.strikeSeen !== strike!.at) {
-              bot.strikeSeen = strike!.at;
-              bot.reaction = ctx.rng.range(60, 260) * (1.7 - bot.skill);
-            }
-            if (now - strike!.at > bot.reaction) hold(bot.id, true, now);
-            continue;
-          }
-          if (c.holdSince !== null) {
-            if (!bot.letGo) bot.letGo = now + ctx.rng.range(80, 200);
-            if (now < bot.letGo) continue;
-            bot.letGo = 0;
-            hold(bot.id, false, now);
-          }
-          if (now < bot.next) continue;
-          bot.next = now + (1000 / (4.4 + 2.2 * bot.skill)) * ctx.rng.range(0.85, 1.2);
-          climb(bot.id, alternation.next(bot.id), now);
-        }
+        bombs = bombs.filter((b) => b.z > -3);
         publish(now);
       },
       isComplete: (now) => result !== null && now >= resultAt + P.showMs,
