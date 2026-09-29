@@ -22,11 +22,12 @@ const NICK_ERRORS: Record<string, string> = {
   banned: "Ce pseudo n'est pas autorisé.",
 };
 
+/** Worlds offered in the lobby (the city only has two games: it comes with « Mélange »). */
 const ZONES: { value: MatchConfig['zone']; label: string }[] = [
   { value: 'mix', label: 'Mélange' },
-  { value: 'foret', label: 'Forêt' },
-  { value: 'ville', label: 'Ville' },
-  { value: 'neige', label: 'Neige' },
+  { value: 'prairie', label: 'Prairie' },
+  { value: 'desert', label: 'Désert' },
+  { value: 'tresor', label: 'Trésor' },
   { value: 'futur', label: 'Futur' },
 ];
 const LENGTHS: { value: MatchConfig['length']; label: string }[] = [

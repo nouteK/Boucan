@@ -97,7 +97,7 @@ export default defineMicrogame({
       draw(_t, dt) {
         const c = g();
         const cx = cam();
-        sceneBg('foret', GY, cx * 0.35);
+        sceneBg('prairie', GY, cx * 0.35);
         c.save();
         c.translate(-cx, 0);
         for (const l of logs) for (const px of [l.x0 + 10, l.x1 - 10]) box(px - 32, LOG_BOTTOM + 20, 64, GY - LOG_BOTTOM - 20, '#6d6a86', 7, 20);

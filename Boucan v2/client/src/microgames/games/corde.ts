@@ -1,5 +1,5 @@
 import type { TypedPayload } from '@boucan/shared';
-import { ellipse, g, INK, outlineText, poly, slam } from '../../engine/draw';
+import { ellipse, g, INK, outlineText, poly, slam, stretch } from '../../engine/draw';
 import { defineMicrogame } from '../api';
 import { sceneBg } from '../backdrops';
 import { Actor, sideOf } from '../common';
@@ -64,7 +64,7 @@ export default defineMicrogame({
         }
       },
       draw(t) {
-        sceneBg('foret', GY);
+        sceneBg('prairie', GY, 0, false, 'corde');
         const c = g();
         const off = shown * TRAVEL;
         // Mud pit and the two winning lines.
@@ -83,16 +83,18 @@ export default defineMicrogame({
         // Rope under the hands, flag in the middle.
         const ropeY = GY - h * 0.5;
         const xs = ctx.players.map((p) => place(p.id).x);
-        c.lineCap = 'round';
-        c.strokeStyle = INK;
-        c.lineWidth = 16;
-        c.beginPath();
-        c.moveTo(Math.min(...xs) - 60, ropeY + 8);
-        c.lineTo(Math.max(...xs) + 60, ropeY + 8);
-        c.stroke();
-        c.strokeStyle = '#c98a4b';
-        c.lineWidth = 9;
-        c.stroke();
+        if (!stretch('rope', Math.min(...xs) - 60, ropeY + 8, Math.max(...xs) + 60, ropeY + 8, 22)) {
+          c.lineCap = 'round';
+          c.strokeStyle = INK;
+          c.lineWidth = 16;
+          c.beginPath();
+          c.moveTo(Math.min(...xs) - 60, ropeY + 8);
+          c.lineTo(Math.max(...xs) + 60, ropeY + 8);
+          c.stroke();
+          c.strokeStyle = '#c98a4b';
+          c.lineWidth = 9;
+          c.stroke();
+        }
         poly([[640 + off, ropeY + 6], [640 + off - 22, ropeY + 58], [640 + off + 22, ropeY + 58]], '#ff2d55', 5);
         for (const p of ctx.players) {
           const { x, side } = place(p.id);

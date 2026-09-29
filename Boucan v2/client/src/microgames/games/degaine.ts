@@ -51,7 +51,7 @@ export default defineMicrogame({
       },
       draw(t) {
         const go = state.signal;
-        sceneBg('neige', GY);
+        sceneBg('desert', GY, 0, false, 'degaine');
         // Tension before the signal (dusk), flashing red / yellow after it.
         const c = g();
         c.fillStyle = go ? (Math.floor(t / 80) % 2 ? 'rgba(255,60,60,.35)' : 'rgba(255,210,60,.35)') : 'rgba(20,10,40,.28)';

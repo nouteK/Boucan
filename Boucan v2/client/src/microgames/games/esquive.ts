@@ -11,7 +11,7 @@ import { drawRoad, enterRoad, roadPoint } from '../road';
  */
 const LANES = [-0.62, 0, 0.62];
 /** Distance of the runner along the road (constant: the road scrolls). */
-const RUNNER_D = 40;
+const RUNNER_D = 90;
 const WAVES = 6;
 
 export default defineMicrogame({

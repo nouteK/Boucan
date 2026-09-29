@@ -1,7 +1,7 @@
 import type { TypedPayload } from '@boucan/shared';
 import { box, g, INK, outlineText, poly, slam, star } from '../../engine/draw';
 import { defineMicrogame } from '../api';
-import { sceneBg } from '../backdrops';
+import { skyline } from '../backdrops';
 import { Actor } from '../common';
 import { bomb, keyCap } from '../props';
 
@@ -102,10 +102,8 @@ export default defineMicrogame({
         }
       },
       draw(t) {
-        sceneBg('ville', GROUND - 190);
+        skyline(GROUND - 190, 0, 'boxe');
         const c = g();
-        c.fillStyle = 'rgba(35,28,56,.35)';
-        c.fillRect(0, 0, 1280, 720);
         if (!state) return;
         const fights = state.fights;
         const mineIdx = Math.max(0, fights.findIndex((f) => f.a.id === ctx.me.id || f.b.id === ctx.me.id));

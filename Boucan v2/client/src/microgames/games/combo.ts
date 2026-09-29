@@ -1,5 +1,5 @@
 import { GAME } from '../../config';
-import { box, g, INK, outlineText, star } from '../../engine/draw';
+import { box, g, INK, item, outlineText, star } from '../../engine/draw';
 import { defineMicrogame } from '../api';
 import { sceneBg } from '../backdrops';
 import { byLevel, GY, hero, sideOf } from '../common';
@@ -84,7 +84,7 @@ export default defineMicrogame({
       },
       timeout: () => (state === 'done' ? 'success' : 'failure'),
       draw(t) {
-        sceneBg('futur', GY);
+        sceneBg('tresor', GY, 0, false, 'combo');
         const c = g();
         c.save();
         c.translate(PIVOT.x, PIVOT.y);
@@ -93,12 +93,14 @@ export default defineMicrogame({
         c.lineWidth = 8;
         c.beginPath();
         c.moveTo(0, -PIVOT.y);
-        c.lineTo(0, 28);
+        c.lineTo(0, -80);
         c.stroke();
-        box(-56, 28, 112, 272, '#d9362b', 8, 38);
-        c.fillStyle = INK;
-        c.fillRect(-56, 100, 112, 13);
-        c.fillRect(-56, 218, 112, 13);
+        if (!item('bag', 0, 125, 430)) {
+          box(-56, 28, 112, 272, '#d9362b', 8, 38);
+          c.fillStyle = INK;
+          c.fillRect(-56, 100, 112, 13);
+          c.fillRect(-56, 218, 112, 13);
+        }
         c.restore();
         me.draw(X, GY);
         for (const p of pows) star(X + 170, p.y, p.t / 220);

@@ -71,7 +71,7 @@ export default defineMicrogame({
       },
       timeout: () => (!hit && passed >= 3 ? 'success' : 'failure'),
       draw(t, dt) {
-        sceneBg('foret', GY);
+        sceneBg('tresor', GY, 0, false, 'saute');
         puffs = drawPuffs(puffs, dt);
         for (let i = 2; i >= 0; i--) {
           const b = bombs[i]!;

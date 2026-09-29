@@ -1,6 +1,6 @@
 # BOUCAN
 
-Jeu navigateur multijoueur façon **WarioWare** : des micro-jeux de quelques secondes enchaînés à toute vitesse, en ligne, de 1 à 8 joueurs (chacun sur son écran), à travers 4 mondes (forêt, ville, neige, futur). Des vies, des accélérations, des duels — le dernier debout gagne.
+Jeu navigateur multijoueur façon **WarioWare** : des micro-jeux de quelques secondes enchaînés à toute vitesse, en ligne, de 1 à 8 joueurs (chacun sur son écran), à travers 5 mondes (prairie, désert, trésor, futur, ville). Des vies, des accélérations, des duels — le dernier debout gagne.
 
 ## Démarrage
 

@@ -48,7 +48,7 @@ export default defineMicrogame({
       },
       timeout: () => (result === 'win' ? 'success' : 'failure'),
       draw(t) {
-        sceneBg('futur', GY);
+        sceneBg('prairie', GY, 0, false, 'soupe');
         me.draw(X, GY);
         potion(BX + 8, BY + 20, 1.1, result === 'win' ? 0.95 : 0, LIQUID);
         const x = pour ? pour.x : lx();

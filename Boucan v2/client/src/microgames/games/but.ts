@@ -92,7 +92,7 @@ export default defineMicrogame({
       },
       timeout: () => (goal ? 'success' : 'failure'),
       draw(time) {
-        sceneBg('ville', GY);
+        sceneBg('prairie', GY, 0, false, 'but');
         const c = g();
         // Goal: posts, crossbar, net.
         c.strokeStyle = 'rgba(255,255,255,.55)';

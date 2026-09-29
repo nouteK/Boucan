@@ -1,6 +1,6 @@
 import type { TypedPayload } from '@boucan/shared';
-import { drawCharacter } from '../../engine/assets';
-import { circle, g, INK, outlineText, slam } from '../../engine/draw';
+import { assets, drawCharacter } from '../../engine/assets';
+import { circle, g, INK, item, outlineText, slam } from '../../engine/draw';
 import { defineMicrogame, type MgPlayer } from '../api';
 import { Actor } from '../common';
 import { keyCap } from '../props';
@@ -167,8 +167,9 @@ export default defineMicrogame({
         const current = s.phase === 'end' ? undefined : s.shooters[s.k];
         const pr: Projector = keeperView
           ? (x, y, z) => {
-              const Z = Math.max(0.25, 18 - z);
-              return { x: 640 - (1000 * x) / Z, y: -60 - (1000 * (y - 4.5)) / Z, s: 1000 / Z, Z };
+              // High camera behind the goal, matching the keeper-view stadium picture.
+              const Z = Math.max(0.25, 15.3 - z);
+              return { x: 640 - (733 * x) / Z, y: 36 - (733 * (y - 3.68)) / Z, s: 733 / Z, Z };
             }
           : (x, y, z) => {
               const Z = Math.max(0.25, z - cz);
@@ -196,8 +197,18 @@ export default defineMicrogame({
           c.lineTo(q2.x, q2.y);
           c.stroke();
         };
-        // Sky with the crowd (shooter view) or the pitch seen from the goal (keeper view).
-        if (!keeperView) {
+        // Stadium picture of the view; drawn crowd and pitch when it is missing.
+        const stadium = assets.image(keeperView ? 'stade-gardien' : 'stade-tireur');
+        if (stadium) {
+          c.fillStyle = '#2f9a52';
+          c.fillRect(0, 0, 1280, 720);
+          if (keeperView) c.drawImage(stadium, -128, 0, 1536, 722);
+          else {
+            const k = (GOAL_Z + 7) / (GOAL_Z - cz);
+            const goal = pr(0, 1.22, GOAL_Z);
+            c.drawImage(stadium, goal.x - 640 * k, goal.y - 190.3 * k, 1280 * k, 602 * k);
+          }
+        } else if (!keeperView) {
           const hz = pr(0, 0, 400).y;
           const sky = c.createLinearGradient(0, 0, 0, hz);
           sky.addColorStop(0, '#141028');
@@ -225,18 +236,20 @@ export default defineMicrogame({
             quad([[-40, 0, z0], [40, 0, z0], [40, 0, z0 - 3], [-40, 0, z0 - 3]], k % 2 ? '#3aa85c' : '#5bd07e');
           }
         }
-        const W = 'rgba(255,255,255,.9)';
-        const lw = (p: [number, number, number]) => Math.max(2, pr(...p).s * 0.1);
-        const L = (a: [number, number, number], b: [number, number, number]) => line(a, b, W, lw(a));
-        L([-40, 0, GOAL_Z], [40, 0, GOAL_Z]);
-        L([-9.16, 0, GOAL_Z], [-9.16, 0, GOAL_Z - 5.5]);
-        L([9.16, 0, GOAL_Z], [9.16, 0, GOAL_Z - 5.5]);
-        L([-9.16, 0, GOAL_Z - 5.5], [9.16, 0, GOAL_Z - 5.5]);
-        L([-20.16, 0, GOAL_Z], [-20.16, 0, GOAL_Z - 16.5]);
-        L([20.16, 0, GOAL_Z], [20.16, 0, GOAL_Z - 16.5]);
-        L([-20.16, 0, GOAL_Z - 16.5], [20.16, 0, GOAL_Z - 16.5]);
-        // Net (back), then the players, then the posts in front.
-        if (!keeperView) {
+        if (!stadium) {
+          const W = 'rgba(255,255,255,.9)';
+          const lw = (p: [number, number, number]) => Math.max(2, pr(...p).s * 0.1);
+          const L = (a: [number, number, number], b: [number, number, number]) => line(a, b, W, lw(a));
+          L([-40, 0, GOAL_Z], [40, 0, GOAL_Z]);
+          L([-9.16, 0, GOAL_Z], [-9.16, 0, GOAL_Z - 5.5]);
+          L([9.16, 0, GOAL_Z], [9.16, 0, GOAL_Z - 5.5]);
+          L([-9.16, 0, GOAL_Z - 5.5], [9.16, 0, GOAL_Z - 5.5]);
+          L([-20.16, 0, GOAL_Z], [-20.16, 0, GOAL_Z - 16.5]);
+          L([20.16, 0, GOAL_Z], [20.16, 0, GOAL_Z - 16.5]);
+          L([-20.16, 0, GOAL_Z - 16.5], [20.16, 0, GOAL_Z - 16.5]);
+        }
+        // Net (back), then the players, then the posts in front (all in the pictures).
+        if (!keeperView && !stadium) {
           quad([[-GOAL_W, 0, GOAL_Z + DEPTH], [GOAL_W, 0, GOAL_Z + DEPTH], [GOAL_W, GOAL_H * 0.8, GOAL_Z + DEPTH], [-GOAL_W, GOAL_H * 0.8, GOAL_Z + DEPTH]], 'rgba(255,255,255,.12)');
           for (let x = -GOAL_W; x <= GOAL_W + 0.01; x += 0.4) line([x, 0, GOAL_Z + DEPTH], [x, GOAL_H * 0.8, GOAL_Z + DEPTH], 'rgba(255,255,255,.35)', 1.5);
           for (let y = 0; y <= GOAL_H * 0.8; y += 0.4) line([-GOAL_W, y, GOAL_Z + DEPTH], [GOAL_W, y, GOAL_Z + DEPTH], 'rgba(255,255,255,.35)', 1.5);
@@ -270,7 +283,7 @@ export default defineMicrogame({
             if (q.Z > 0.7) outlineText(o === 'goal' ? '✔' : '✘', q.x, q.y + 22, 22, o === 'goal' ? '#7dff9b' : '#ff6b6b', 'center', 4);
           }
         });
-        person(players(s.keeper), kp.x, GOAL_Z + (keeperView ? 0.3 : 0.15), 1.55, keeperView, kp.lift, keeperView ? -kp.rot : kp.rot);
+        person(players(s.keeper), kp.x, GOAL_Z + (keeperView ? -0.3 : 0.15), 1.55, keeperView, kp.lift, keeperView ? -kp.rot : kp.rot);
         const b = ball(now);
         const drawBall = (big: number) => {
           const q = pr(...b);
@@ -293,6 +306,7 @@ export default defineMicrogame({
               c.fill();
             });
           }
+          if (item('foot', q.x, q.y, r * 2.2, t / 80)) return;
           c.save();
           c.translate(q.x, q.y);
           c.rotate(t / 80);
@@ -308,7 +322,7 @@ export default defineMicrogame({
         // Posts.
         const post = pr(0, GOAL_H, GOAL_Z);
         const pw = Math.max(6, post.s * 0.14);
-        for (const [a, bb] of [
+        if (!stadium) for (const [a, bb] of [
           [[-GOAL_W, 0, GOAL_Z], [-GOAL_W, GOAL_H, GOAL_Z]],
           [[GOAL_W, 0, GOAL_Z], [GOAL_W, GOAL_H, GOAL_Z]],
           [[-GOAL_W, GOAL_H, GOAL_Z], [GOAL_W, GOAL_H, GOAL_Z]],

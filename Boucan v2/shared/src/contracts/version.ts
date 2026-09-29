@@ -13,5 +13,5 @@
  *
  * Every change is logged in CHANGELOG.md.
  */
-export const PROTOCOL_VERSION = 3;
-export const CONTRACT_REVISION = '3.0.0';
+export const PROTOCOL_VERSION = 4;
+export const CONTRACT_REVISION = '4.0.0';

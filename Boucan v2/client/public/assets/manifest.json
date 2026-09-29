@@ -6,9 +6,10 @@
     "  poses : relie les poses logiques du jeu (idle, run, start, stop, punch, kick, throw, duck, slide, ready, hold, catch, carry, hurt, win, lose,",
     "  box, box_punch, box_guard, box_hurt, box_win, paddle, paddle_hurt, pull, pull_hard, ping, ping_ready, ping_hit) aux animations de l'atlas. Une pose absente retombe sur 'idle'.",
     "  Forme longue : { anim, sprite (planche de 'sprites' au lieu de celle du perso), scale, rot (radians), dx, dy, sx, sy (échelle fixe), squash }.",
-    "sprites : objets animés (bombe du minuteur, ballon…), images de décor (route, table de ping-pong) et planches de poses spéciales d'un personnage. Même format d'atlas.",
+    "sprites : objets animés (bombe du minuteur, ballon…), route, table de ping-pong, planches de poses spéciales d'un personnage. Même format d'atlas. 'outline' (px) = liseré blanc « papier découpé » autour du dessin (personnages aussi).",
     "music : pistes de fond (menu = menu et salon, match = partie). sounds : effets optionnels ; absents = sons synthétisés.",
-    "backgrounds : les 4 mondes (foret, ville, neige, futur) : { image, floor } (floor = hauteur du sol, 0..1). Absents = décors dessinés.",
+    "backgrounds : les mondes (prairie, desert, tresor, futur, ville) : { image, floor } (floor = hauteur du sol, 0..1). Absents = aplats.",
+    "images : images simples par nom (objets autocollants, éléments de décor posés, photos de scène), dessinées par les micro-jeux et les décors.",
     "Voir client/public/assets/README.md pour le détail."
   ],
   "characters": {
@@ -94,7 +95,8 @@
           "anim": "ping_hit",
           "scale": 1
         }
-      }
+      },
+      "outline": 7
     },
     "renard": {
       "name": "Renard",
@@ -200,7 +202,8 @@
           "rot": -0.3,
           "dx": -18
         }
-      }
+      },
+      "outline": 4
     }
   },
   "sprites": {
@@ -212,33 +215,34 @@
       "image": "sprites/balle.webp",
       "atlas": "sprites/balle.json"
     },
-    "skate": {
-      "image": "sprites/skate.webp",
-      "atlas": "sprites/skate.json"
-    },
     "radeau": {
       "image": "sprites/radeau.webp",
       "atlas": "sprites/radeau.json"
     },
     "chien-boxe": {
       "image": "sprites/chien-boxe.webp",
-      "atlas": "sprites/chien-boxe.json"
+      "atlas": "sprites/chien-boxe.json",
+      "outline": 6
     },
     "chien-boxe-ko": {
       "image": "sprites/chien-boxe-ko.webp",
-      "atlas": "sprites/chien-boxe-ko.json"
+      "atlas": "sprites/chien-boxe-ko.json",
+      "outline": 6
     },
     "chien-rame": {
       "image": "sprites/chien-rame.webp",
-      "atlas": "sprites/chien-rame.json"
+      "atlas": "sprites/chien-rame.json",
+      "outline": 6
     },
     "chien-corde": {
       "image": "sprites/chien-corde.webp",
-      "atlas": "sprites/chien-corde.json"
+      "atlas": "sprites/chien-corde.json",
+      "outline": 6
     },
     "chien-ping": {
       "image": "sprites/chien-ping.webp",
-      "atlas": "sprites/chien-ping.json"
+      "atlas": "sprites/chien-ping.json",
+      "outline": 6
     },
     "route": {
       "image": "sprites/route.webp",
@@ -249,27 +253,89 @@
       "atlas": "sprites/table-ping.json"
     }
   },
-  "sounds": {},
+  "sounds": {
+    "hit": "sounds/hit.mp3",
+    "select": "sounds/select.mp3",
+    "fanfare": "sounds/fanfare.mp3"
+  },
   "music": {
     "menu": "music/menu-elastic-bass-groove.mp3",
     "match": "music/match-5-second-chaos.mp3"
   },
   "backgrounds": {
-    "foret": {
-      "image": "backgrounds/foret.webp",
-      "floor": 0.757
+    "prairie": {
+      "image": "backgrounds/prairie.webp",
+      "floor": 0.862
     },
-    "ville": {
-      "image": "backgrounds/ville.webp",
-      "floor": 0.749
+    "desert": {
+      "image": "backgrounds/desert.webp",
+      "floor": 0.862
     },
-    "neige": {
-      "image": "backgrounds/neige.webp",
-      "floor": 0.723
+    "tresor": {
+      "image": "backgrounds/tresor.webp",
+      "floor": 0.862
     },
     "futur": {
       "image": "backgrounds/futur.webp",
-      "floor": 0.77
+      "floor": 0.8
+    },
+    "ville": {
+      "image": "backgrounds/ville.webp",
+      "floor": 0.72
     }
+  },
+  "images": {
+    "bag": "images/items/bag.webp",
+    "basket": "images/items/basket.webp",
+    "bone": "images/items/bone.webp",
+    "bulb": "images/items/bulb.webp",
+    "bulb-x": "images/items/bulb-x.webp",
+    "coin": "images/items/coin.webp",
+    "crate": "images/items/crate.webp",
+    "cup": "images/items/cup.webp",
+    "drone": "images/items/drone.webp",
+    "egg": "images/items/egg.webp",
+    "egg-x": "images/items/egg-x.webp",
+    "fbomb": "images/items/fbomb.webp",
+    "foot": "images/items/foot.webp",
+    "knife": "images/items/knife.webp",
+    "melon": "images/items/melon.webp",
+    "melon-h": "images/items/melon-h.webp",
+    "orange": "images/items/orange.webp",
+    "orange-h": "images/items/orange-h.webp",
+    "paddle": "images/items/paddle.webp",
+    "pball": "images/items/pball.webp",
+    "plate1": "images/items/plate1.webp",
+    "plate2": "images/items/plate2.webp",
+    "rocket": "images/items/rocket.webp",
+    "rope": "images/items/rope.webp",
+    "shutter": "images/items/shutter.webp",
+    "snow": "images/items/snow.webp",
+    "straw": "images/items/straw.webp",
+    "straw-h": "images/items/straw-h.webp",
+    "ufo": "images/items/ufo.webp",
+    "wball": "images/items/wball.webp",
+    "d-agave": "images/decor/d-agave.webp",
+    "d-bush": "images/decor/d-bush.webp",
+    "d-camel": "images/decor/d-camel.webp",
+    "d-palm1": "images/decor/d-palm1.webp",
+    "d-palm2": "images/decor/d-palm2.webp",
+    "d-pyr": "images/decor/d-pyr.webp",
+    "p-r1": "images/decor/p-r1.webp",
+    "p-r3": "images/decor/p-r3.webp",
+    "p-r4": "images/decor/p-r4.webp",
+    "p-t1": "images/decor/p-t1.webp",
+    "p-t2": "images/decor/p-t2.webp",
+    "p-t3": "images/decor/p-t3.webp",
+    "p-t4": "images/decor/p-t4.webp",
+    "t-chest": "images/decor/t-chest.webp",
+    "t-coins": "images/decor/t-coins.webp",
+    "t-gemb": "images/decor/t-gemb.webp",
+    "t-gemr": "images/decor/t-gemr.webp",
+    "t-skull": "images/decor/t-skull.webp",
+    "gymnase": "images/scenes/gymnase.webp",
+    "panier": "images/scenes/panier.webp",
+    "stade-tireur": "images/scenes/stade-tireur.webp",
+    "stade-gardien": "images/scenes/stade-gardien.webp"
   }
 }

@@ -1,15 +1,18 @@
 # Micro-jeux
 
-32 micro-jeux, tous issus du prototype OUAF WARE et réécrits dans cette architecture ([ADR-0012](adr/0012-nouveaux-mini-jeux.md), [ADR-0013](adr/0013-catalogue-ouaf-ware.md)) : 22 solos et 10 duels, sans boss. Liste et réglages : `shared/src/contracts/catalog.ts`.
+38 micro-jeux, tous issus du prototype OUAF WARE (v3) et réécrits dans cette architecture ([ADR-0012](adr/0012-nouveaux-mini-jeux.md), [ADR-0013](adr/0013-catalogue-ouaf-ware.md), [ADR-0014](adr/0014-catalogue-ouaf-ware-v3.md)) : 28 solos et 10 duels, sans boss. Liste et réglages : `shared/src/contracts/catalog.ts`.
 
-Chaque micro-jeu se passe dans l'un des 4 **mondes** (le « monde » choisi dans le salon, ou « Mélange ») :
+Chaque micro-jeu se passe dans l'un des 5 **mondes** (le « monde » choisi dans le salon, ou « Mélange » ; la ville, trop petite, n'est jouée qu'en Mélange) :
 
 | Monde | Solos | Duels |
 | --- | --- | --- |
-| Forêt | `saute`, `bouge`, `caisse`, `glisse` | `patate`, `roi`, `corde`, `radeau` |
-| Ville | `cours`, `but`, `baisse`, `skate`, `esquive`, `fusee` | `gardien`, `sauter`, `boxe` |
-| Neige | `hautbas`, `degage`, `plateau`, `puree` | `degaine`, `soleil` |
-| Futur | `attrape`, `combo`, `panier`, `lancer`, `rythme`, `laser`, `bulle`, `soupe` | `ping` |
+| Prairie | `attrape`, `bouge`, `but`, `baisse`, `rythme`, `pasteque`, `degage`, `bulle`, `glisse`, `plateau`, `puree`, `soupe` | `soleil`, `sauter`, `corde`, `radeau`, `boxe` |
+| Désert | `cours`, `hautbas`, `fusee`, `ballon`, `assiettes` | `degaine` |
+| Trésor | `saute`, `combo`, `porte`, `gobelet`, `caisse` | `patate` |
+| Futur | `panier`, `lancer`, `laser`, `ampoule`, `photo` | `ping`, `pieces` |
+| Ville | `esquive` | `gardien` |
+
+**Manches faciles** : les solos marqués `easy` dans le catalogue (`cours`, `saute`, `attrape`, `but`, `baisse`, `rythme`, `porte`, `gobelet`, `ballon`, `photo`, `caisse`, `plateau`) sont les seuls tirés pendant les `rhythm.easyRounds` premières manches (4 par défaut) quand le monde en contient.
 
 Quelques identifiants sont historiques (`puree` = boules de neige, `soupe` = fiole, `plateau` = œufs, `panier`, `bulle`) : ils restent stables pour la liste blanche `BOUCAN_MICROGAMES` et les tests.
 
@@ -26,12 +29,18 @@ Quelques identifiants sont historiques (`puree` = boules de neige, `soupe` = fio
 | `baisse` | BAISSE-TOI ! | appui · ↓ | se baisser juste avant chaque ballon |
 | `panier` | DANS LE PANIER ! | appui | gymnase en 3D : tirer pour que le panier mobile soit sur la ligne à l'arrivée |
 | `lancer` | LANCE LE PLUS LOIN ! | 2 appuis | force puis angle ; dépasser l'objectif |
-| `skate` | RESTE SUR LA RAMPE ! | maintien gauche / droite · ← → | contre-braquer le vent pour rester sur la route |
 | `esquive` | ESQUIVE LES BOMBES ! | gauche / droite · ← → | changer de voie (3 voies) pour laisser passer les bombes |
 | `hautbas` | SAUTE ET BAISSE-TOI ! | moitié droite = saut, gauche = baisse · ↑ ↓ | sauter les bombes au sol, se baisser sous les bombes volantes |
 | `rythme` | RÉPÈTE LE RYTHME ! | appuis | écouter le tambour, puis répéter le rythme |
 | `fusee` | ESQUIVE LA FUSÉE ! | boutons ◀ ▶ + SAUTE · ← → ↑ | trois fusées annoncées : rasante, haute, en piqué ou à tête chercheuse |
 | `laser` | CACHE-TOI DES LASERS ! | garder le doigt où aller · flèches | avant le tir, se cacher derrière le métal (le verre ne protège pas) |
+| `porte` | FERME LA PORTE ! | appui · ↑ / Espace | baisser le volet pile quand la bombe arrive à la porte (elle s'arrête parfois pour réfléchir) |
+| `ampoule` | VISSE L'AMPOULE ! | alternance | visser gauche, droite, gauche… ; deux fois le même côté force le pas de vis (3 craquements = cassée) |
+| `gobelet` | OÙ EST L'OS ? | toucher le gobelet · ← ↑ → | suivre l'os caché sous un gobelet pendant les échanges, puis désigner le bon |
+| `pasteque` | TRANCHE LES FRUITS ! | toucher où trancher · ← → + ↑ / Espace | trancher trois fruits lancés en l'air, jamais une bombe |
+| `ballon` | VISE LE RENARD ! | maintien puis lâcher · ↑ / Espace maintenus | lâcher la bombe à eau quand la jauge de force est sur le trait rouge |
+| `photo` | PRENDS LA PHOTO ! | appui | déclencher quand la soucoupe est dans le viseur |
+| `assiettes` | TIENS LES ASSIETTES ! | maintien gauche / droite · ← → | contrebalancer la pile d'assiettes jusqu'à la fin |
 | `caisse` | CASSE LA CAISSE ! | martèlement | casser la caisse avant la fin |
 | `degage` | SHOOTE LES BOMBES ! | appui en rythme | quatre bombes arrivent en cadence : shooter chacune dans la zone jaune |
 | `bulle` | GONFLE LA BULLE ! | alternance | pomper gauche, droite, gauche… |
@@ -42,10 +51,10 @@ Quelques identifiants sont historiques (`puree` = boules de neige, `soupe` = fio
 | `patate` (duel) | PATATE CHAUDE ! | appui | passer la bombe avant qu'elle explose |
 | `degaine` (duel) | ATTENDS LE SIGNAL… | appui | appuyer dès « TAPE ! », jamais avant ; le plus lent perd |
 | `soleil` (duel) | 1, 2, 3… SOLEIL ! | alternance (guetteur : → se retourner, ← feinte) | un guetteur tiré au sort contre les coureurs |
-| `roi` (duel) | LE ROI DE LA COLLINE ! | boutons ◀ ▶ (+ BOMBE pour le roi) · ← → ↑ | le roi bombarde la pente ; les grimpeurs montent seuls et esquivent |
 | `gardien` (duel) | TIRS AU BUT ! | toucher gauche / milieu / droite | un gardien contre 3 tireurs max |
 | `sauter` (duel) | CORDE À SAUTER ! | appui | sauter à chaque passage de la corde, qui tourne de plus en plus vite |
-| `ping` (duel) | PING-PONG ! | boutons ◀ ▶ + FRAPPE · ← → ↑ | matchs à deux (l'impair contre la bombe), premier à 2 points |
+| `ping` (duel) | PING-PONG ! | boutons ◀ ▶ + FRAPPE (la raquette suit le doigt) · ← → ↑ | matchs à deux (l'impair contre la bombe), premier à 2 points |
+| `pieces` (duel) | QUI A LE PLUS ? | moitiés d'écran / ◀ ▶ · ← → | chacun sa piste sous la même pluie de pièces et de bombes (−2 et étourdi) ; le plus riche gagne |
 | `corde` (duel) | TIRE LA CORDE ! | alternance | deux équipes au hasard |
 | `radeau` (duel) | RAME ! | alternance | deux équipes ; ralentir avant les rapides |
 | `boxe` (duel) | BOXE ! | droite = frappe, maintien gauche = garde | 1 contre 1 (le joueur impair boxe la bombe) |
@@ -78,7 +87,7 @@ const pad = new Pad(ctx, [
 
 Aucun code serveur.
 
-1. **Catalogue** — `shared/src/contracts/catalog.ts` : `{ id, kind: 'solo', zones: ['ville'], durationMs, hint }`. `hint` choisit l'icône de geste affichée avec la consigne (`tap`, `mash`, `hold`, `move`, `drag`, `wait`, `alternate`, `updown`). `weight` optionnel. (`kind: 'boss'` reste possible : le moteur clôt alors chaque niveau par un boss, +1 vie en cas de réussite ; le catalogue actuel n'en a pas.)
+1. **Catalogue** — `shared/src/contracts/catalog.ts` : `{ id, kind: 'solo', zones: ['prairie'], durationMs, hint }`. `hint` choisit l'icône de geste affichée avec la consigne (`tap`, `mash`, `hold`, `move`, `drag`, `wait`, `alternate`, `updown`). `weight` et `easy` (jouable dès les premières manches) optionnels. (`kind: 'boss'` reste possible : le moteur clôt alors chaque niveau par un boss, +1 vie en cas de réussite ; le catalogue actuel n'en a pas.)
 2. **Client** — `client/src/microgames/games/<id>.ts` :
 
    ```ts
@@ -104,12 +113,13 @@ Aucun code serveur.
 
 Boîte à outils :
 - `common.ts` : `hero(ctx)` (ton personnage), `npc(ctx, i)` (un figurant qui porte le personnage d'un autre joueur), `isPress(e)` (appui volontaire, sans auto-répétition), `sideOf(e)` (gauche / droite), `byLevel`, `between`, `fxRand`, sol `GY`.
-- `backdrops.ts` : `sceneBg(monde, solY, défilement, cielSeul)` — le décor peint du monde, calé sur le sol du jeu.
-- `road.ts` : la route vue de dos (`esquive`, `skate`) : `drawRoad`, `roadPoint(distance, côté)`, `enterRoad()`.
+- `backdrops.ts` : `sceneBg(monde, solY, défilement, cielSeul, graine)` — le diorama du monde (image, pièces de décor tirées par la graine — l'id du jeu —, bande de sol papier, brume, lumière, particules), calé sur le sol du jeu et mis en cache ; `skyline(horizonY, pan, graine)` pour les scènes 3D qui peignent leur propre sol.
+- `engine/draw.ts` : `item(nom, x, y, hauteur, rotation, miroir)` dessine un objet en image (`assets/images`, renvoie `false` si l'image manque : prévoir un repli dessiné) ; `stretch(nom, x1, y1, x2, y2, épaisseur)` étire une image entre deux points (corde).
+- `road.ts` : la rue vue de dos (`esquive`) : `drawRoad`, `roadPoint(distance, côté)`, `enterRoad()`.
 - `pad.ts` : boutons à l'écran / touches (voir *Commandes*).
 - `props.ts` : bombe, explosion, drapeau, abeille, panneau, œuf, fiole, drone, boules de neige, `keyCap` (touche / flèche à l'écran), `ringTimer`, `gauge`.
 - `engine/draw.ts` (formes au trait épais, texte contouré, étoiles, bulles), `ctx.sfx(nom)`, `ctx.shake(ms)`.
-- Poses de personnage (manifeste) : `idle`, `run`, `start`, `stop`, `punch`, `kick`, `throw`, `duck`, `slide`, `ready`, `hold`, `catch`, `carry`, `hurt`, `win`, `lose`, `box*`, `paddle*`, `pull*`, `ping*`. `assets.hasPoseArt(perso, pose)` dit si le personnage a son propre dessin (sinon le jeu dessine l'accessoire).
+- Poses de personnage (manifeste) : `idle`, `run`, `start`, `stop`, `punch`, `kick`, `throw`, `duck`, `slide`, `ready`, `hold`, `catch`, `carry`, `hurt`, `win`, `lose`, `box*`, `paddle*`, `pull*`, `ping*`. `assets.hasPoseArt(perso, pose)` dit si le personnage a son propre dessin (sinon le jeu dessine l'accessoire). Contour papier et mouvement procédural (`juice`) sont ajoutés par le moteur à tous les personnages.
 
 ## Ajouter un duel
 
@@ -123,13 +133,13 @@ Un duel réunit tous les joueurs en vie dans une arène commune : le serveur sim
    - les bots jouent via `ctx.isBot` / `ctx.skillOf` ; juger les appuis sur `meta.at` (temps compensé de la latence) et, pour un geste qui dépend d'un instant précis (saut, frappe), trancher un peu *après* cet instant pour laisser arriver les paquets en retard (`sauter`, `ping`) ;
    - `kits/duel.ts` : `twoTeams`, `Alternation` (gauche / droite), `BotClock`, schéma `Side`.
    Un module ne touche jamais aux sockets, phases, vies ou timers. L'état publié doit être du JSON pur (pas d'`Infinity`), horodatages entiers.
-3. **Client** — `games/<id>.ts` : dessiner l'état reçu (`onState`, `onEvent`), envoyer les intentions (`ctx.send(input)`), `duel-common.ts` pour placer les combattants. Prédire localement ce qui doit réagir tout de suite (son propre appui, son propre déplacement, sa propre frappe) et extrapoler les positions entre deux états (`roi`, `ping`).
+3. **Client** — `games/<id>.ts` : dessiner l'état reçu (`onState`, `onEvent`), envoyer les intentions (`ctx.send(input)`), `duel-common.ts` pour placer les combattants. Prédire localement ce qui doit réagir tout de suite (son propre appui, son propre déplacement, sa propre frappe) et extrapoler les positions entre deux états (`pieces`, `ping`).
 4. **Tests** — `server/test/*duels*.test.ts` (horloge simulée) ; le test client `client/test/duels.test.ts` fait tourner automatiquement le module réel avec le rendu ; `npm run check:integration` contre un serveur lancé.
 
 ## Vérifier en jeu
 
 - `?preview=<id>` (dev uniquement) : un micro-jeu seul, en boucle ; `&level=2`, `&seed=5`, `&players=4`, `&freeze=1500` (avance directement à cet instant par pas de 16 ms, puis fige l'image : captures fiables même quand l'onglet est ralenti). Les duels y tournent avec leur module serveur et des bots.
-- `?offline` : partie solo avec bots, sans serveur ; `&games=boxe,skate` (liste blanche), `&duelEvery=1`, `&bots=5`.
+- `?offline` : partie solo avec bots, sans serveur ; `&games=boxe,pieces` (liste blanche), `&duelEvery=1`, `&bots=5`.
 - `BOUCAN_MICROGAMES=saute,patate` côté serveur pour ne jouer que certains micro-jeux.
 
 ## Modifier ou retirer

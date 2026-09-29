@@ -183,7 +183,47 @@ export function burst(x: number, y: number, r: number, col = '#ffcf3b', inner = 
   c.restore();
 }
 
+/** Where named pictures come from (set by the asset store, see engine/assets.ts). */
+let pictures: (name: string) => HTMLImageElement | undefined = () => undefined;
+
+export function setPictureSource(source: (name: string) => HTMLImageElement | undefined): void {
+  pictures = source;
+}
+
+/**
+ * Draws a named picture of the manifest (sticker objects: bone, crate…)
+ * centred on (x, y), `h` px tall. false when it is missing: the caller draws
+ * its own fallback.
+ */
+export function item(name: string, x: number, y: number, h: number, rot = 0, flip = false): boolean {
+  const img = pictures(name);
+  if (!img) return false;
+  const w = (h * img.width) / img.height;
+  const c = g();
+  c.save();
+  c.translate(x, y);
+  if (rot) c.rotate(rot);
+  if (flip) c.scale(-1, 1);
+  c.drawImage(img, -w / 2, -h / 2, w, h);
+  c.restore();
+  return true;
+}
+
+/** A named picture stretched from (x1, y1) to (x2, y2), `thickness` px thick (rope…). false when missing. */
+export function stretch(name: string, x1: number, y1: number, x2: number, y2: number, thickness: number): boolean {
+  const img = pictures(name);
+  if (!img) return false;
+  const c = g();
+  c.save();
+  c.translate(x1, y1);
+  c.rotate(Math.atan2(y2 - y1, x2 - x1));
+  c.drawImage(img, 0, -thickness / 2, Math.hypot(x2 - x1, y2 - y1), thickness);
+  c.restore();
+  return true;
+}
+
 export function bone(x: number, y: number, sc = 1, rot = 0, fill: string = GAME.paper): void {
+  if (fill === GAME.paper && item('bone', x, y, 96 * sc, rot + 0.49)) return;
   const c = g();
   c.save();
   c.translate(x, y);

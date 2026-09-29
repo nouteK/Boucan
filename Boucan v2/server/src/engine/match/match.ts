@@ -265,10 +265,12 @@ export class Match {
       !bossSlot && rhythm.duelEvery > 0 && this.counter % rhythm.duelEvery === 0 && alive.length >= 2;
     let kind: MicrogameKind = bossSlot ? 'boss' : duelSlot ? 'duel' : 'solo';
     const enabled = this.host.registry.enabled();
-    let info = pickMicrogame(enabled, kind, this.stageZone, this.history, this.rng);
+    // The first rounds of a match pick easy microgames (warm-up).
+    const early = this.counter <= rhythm.easyRounds;
+    let info = pickMicrogame(enabled, kind, this.stageZone, this.history, this.rng, early);
     if (!info) {
       kind = 'solo';
-      info = pickMicrogame(enabled, 'solo', this.stageZone, this.history, this.rng)!;
+      info = pickMicrogame(enabled, 'solo', this.stageZone, this.history, this.rng, early)!;
     }
     this.history.push(info.id);
     this.zone = roundZone(info, this.stageZone, this.rng, this.zone);

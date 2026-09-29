@@ -1,5 +1,5 @@
 import { GAME } from '../config';
-import { circle, ellipse, g, INK } from './draw';
+import { circle, ellipse, g, INK, setPictureSource } from './draw';
 
 /**
  * Assets are declared in public/assets/manifest.json (see README there).
@@ -36,12 +36,15 @@ interface CharacterEntry {
   image: string;
   atlas: string;
   scale?: number;
+  /** Width (source px) of the white "cut-out paper" border drawn around the art. */
+  outline?: number;
   poses?: Record<string, PoseSpec>;
 }
 
 interface SpriteEntry {
   image: string;
   atlas: string;
+  outline?: number;
 }
 
 interface Manifest {
@@ -51,6 +54,8 @@ interface Manifest {
   music?: Record<string, string>;
   /** World scenes ({ image, floor }), or a plain path. */
   backgrounds?: Record<string, string | { image: string; floor?: number }>;
+  /** Plain pictures by name: sticker objects, decor pieces, scene photos. */
+  images?: Record<string, string>;
 }
 
 /** A scenery image and the height of its ground line (0..1 of the image height). */
@@ -60,7 +65,8 @@ export interface Scene {
 }
 
 export interface LoadedSheet {
-  image: HTMLImageElement;
+  /** The sheet, or its "cut-out paper" version (a canvas of the same size). */
+  image: HTMLImageElement | HTMLCanvasElement;
   atlas: Atlas;
 }
 
@@ -107,6 +113,7 @@ class AssetStore {
   private characterOrder: string[] = [];
   private sprites = new Map<string, LoadedSheet>();
   private backgrounds = new Map<string, Scene>();
+  private images = new Map<string, HTMLImageElement>();
   sounds: Record<string, string> = {};
   music: Record<string, string> = {};
 
@@ -127,7 +134,7 @@ class AssetStore {
     this.characterOrder = Object.keys(manifest.characters ?? {});
     for (const [id, entry] of Object.entries(manifest.characters ?? {})) {
       jobs.push(
-        track(loadSheet(entry.image, entry.atlas)).then(
+        track(loadSheet(entry.image, entry.atlas, entry.outline)).then(
           (sheet) => void this.characters.set(id, { entry, sheet }),
           (e) => console.warn(`[assets] character "${id}" skipped`, e),
         ),
@@ -135,7 +142,7 @@ class AssetStore {
     }
     for (const [id, entry] of Object.entries(manifest.sprites ?? {})) {
       jobs.push(
-        track(loadSheet(entry.image, entry.atlas)).then(
+        track(loadSheet(entry.image, entry.atlas, entry.outline)).then(
           (sheet) => void this.sprites.set(id, sheet),
           (e) => console.warn(`[assets] sprite "${id}" skipped`, e),
         ),
@@ -148,6 +155,14 @@ class AssetStore {
         track(loadImage(path)).then(
           (image) => void this.backgrounds.set(id, { image, floor }),
           () => console.warn(`[assets] background "${id}" skipped`),
+        ),
+      );
+    }
+    for (const [id, path] of Object.entries(manifest.images ?? {})) {
+      jobs.push(
+        track(loadImage(path)).then(
+          (image) => void this.images.set(id, image),
+          () => console.warn(`[assets] image "${id}" skipped`),
         ),
       );
     }
@@ -168,7 +183,7 @@ class AssetStore {
     return this.characters.has(id);
   }
 
-  /** World scene (foret, ville, neige, futur); undefined → drawn fallback. */
+  /** World scene (prairie, desert, tresor, futur, ville); undefined → drawn fallback. */
   background(id: string): Scene | undefined {
     return this.backgrounds.get(id);
   }
@@ -183,12 +198,18 @@ class AssetStore {
     return this.sprites.get(id);
   }
 
+  /** Plain picture by name (manifest "images"); undefined → the caller draws a fallback. */
+  image(id: string): HTMLImageElement | undefined {
+    return this.images.get(id);
+  }
+
   character(id: string) {
     return this.characters.get(id);
   }
 }
 
 export const assets = new AssetStore();
+setPictureSource((name) => assets.image(name));
 
 function loadImage(path: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -199,10 +220,36 @@ function loadImage(path: string): Promise<HTMLImageElement> {
   });
 }
 
-async function loadSheet(image: string, atlas: string): Promise<LoadedSheet> {
+async function loadSheet(image: string, atlas: string, outline = 0): Promise<LoadedSheet> {
   const [img, json] = await Promise.all([loadImage(image), fetch(BASE + atlas).then((r) => r.json() as Promise<Atlas>)]);
-  return { image: img, atlas: json };
+  return { image: outline > 0 ? paperCut(img, outline) : img, atlas: json };
 }
+
+/**
+ * "Cut-out paper" look: the art with a cream border of `r` px all around
+ * (the silhouette stamped in 16 directions, filled, then the art on top).
+ * Built once at load; the original image can then be released.
+ */
+function paperCut(img: HTMLImageElement, r: number): HTMLImageElement | HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = img.width;
+  c.height = img.height;
+  const x = c.getContext('2d');
+  if (!x) return img;
+  for (let k = 0; k < 16; k++) {
+    const a = (k / 16) * Math.PI * 2;
+    x.drawImage(img, Math.cos(a) * r, Math.sin(a) * r);
+  }
+  x.globalCompositeOperation = 'source-in';
+  x.fillStyle = PAPER;
+  x.fillRect(0, 0, c.width, c.height);
+  x.globalCompositeOperation = 'source-over';
+  x.drawImage(img, 0, 0);
+  return c;
+}
+
+/** Colour of the cut-out border (also used by decor pieces). */
+export const PAPER = '#fffdf6';
 
 /** Frame name of an animation at time t (ms since it started). */
 export function frameAt(atlas: Atlas, anim: string, t: number): string | null {
@@ -281,14 +328,93 @@ export function drawCharacter(
     const frame = frameAt(sheet.atlas, s.anim, t) ?? Object.keys(sheet.atlas.frames)[0]!;
     const hh = h * (entry.scale ?? 1) * (s.scale ?? 1);
     const sgn = opts.flip ? -1 : 1;
+    const j = s.sprite ? breathe(t, opts.color) : juice(pose, t, h, sgn, opts.color);
     c.save();
-    c.translate(x + (s.dx ?? 0) * sgn * (h / 330), y + (s.dy ?? 0) * (h / 330));
+    c.translate(x + j.dx, y + j.dy);
+    if (j.r) c.rotate(j.r);
+    c.scale(j.sx, j.sy);
+    c.translate((s.dx ?? 0) * sgn * (h / 330), (s.dy ?? 0) * (h / 330));
     if (s.sx || s.sy) c.scale(s.sx ?? 1, s.sy ?? 1);
     if (s.squash) c.scale(1 + s.squash, 1 - s.squash * Math.abs(Math.sin(t / 120)));
     drawFrame(sheet, frame, 0, 0, hh, opts.flip, ((s.rot ?? 0) + (opts.rot ?? 0)) * sgn);
     c.restore();
   }
   if (opts.alpha !== undefined) c.restore();
+}
+
+interface Juice {
+  sx: number;
+  sy: number;
+  r: number;
+  dx: number;
+  dy: number;
+}
+const STILL: Juice = { sx: 1, sy: 1, r: 0, dx: 0, dy: 0 };
+
+/** A phase per player (from their colour), so that idle characters do not breathe in sync. */
+function phaseOf(color = ''): number {
+  let h = 0;
+  for (let i = 0; i < color.length; i++) h = (h * 31 + color.charCodeAt(i)) % 997;
+  return (h / 997) * Math.PI * 2;
+}
+
+/**
+ * Procedural animation over the frames (squash & stretch): breathing when
+ * idle, bounce and lean when running, crouch at a jump start, wobble when
+ * landing, recoil when hit, lunge on a punch / kick / throw.
+ * `t` = ms since the pose started, `h` = drawn height, `sg` = facing (±1).
+ */
+function juice(pose: Pose, t: number, h: number, sg: number, color?: string): Juice {
+  const ph = phaseOf(color);
+  switch (pose) {
+    case 'idle':
+    case 'carry':
+    case 'hold': {
+      const b = Math.sin(t / 300 + ph);
+      return { sx: 1 - 0.014 * b, sy: 1 + 0.024 * b, r: 0.014 * Math.sin(t / 620 + ph), dx: 0, dy: 0 };
+    }
+    case 'run': {
+      const p = t / 82 + ph;
+      const c = Math.cos(p * 2);
+      return { sx: 1 - 0.025 * c, sy: 1 + 0.035 * c, r: 0.075 * sg + 0.02 * Math.sin(p), dx: 0, dy: -Math.abs(Math.sin(p)) * h * 0.03 };
+    }
+    case 'start': {
+      const k = Math.max(0, 1 - t / 170);
+      return { sx: 1 + 0.09 * k, sy: 1 - 0.11 * k, r: 0.05 * sg * (1 - k), dx: 0, dy: 0 };
+    }
+    case 'stop': {
+      const k = Math.max(0, 1 - t / 220) * Math.cos(t / 45);
+      return { sx: 1 + 0.1 * k, sy: 1 - 0.12 * k, r: 0, dx: 0, dy: 0 };
+    }
+    case 'hurt': {
+      const k = Math.max(0, 1 - t / 450);
+      return { sx: 1 + 0.05 * k, sy: 1 - 0.07 * k, r: -0.14 * sg * k, dx: Math.sin(t / 16) * 11 * k * (h / 330), dy: 0 };
+    }
+    case 'punch':
+    case 'kick':
+    case 'throw': {
+      const k = Math.max(0, 1 - Math.abs(t - 110) / 130);
+      return { sx: 1 + 0.08 * k, sy: 1 - 0.05 * k, r: 0.04 * sg * k, dx: 14 * sg * k * (h / 330), dy: 0 };
+    }
+    case 'catch':
+    case 'ready': {
+      const k = Math.max(0, 1 - t / 220);
+      return { sx: 1 + 0.08 * k, sy: 1 - 0.1 * k, r: 0, dx: 0, dy: 0 };
+    }
+    case 'duck':
+    case 'slide': {
+      const k = Math.max(0, 1 - t / 150);
+      return { sx: 1 + 0.08 * k, sy: 1 - 0.08 * k, r: 0, dx: 0, dy: 0 };
+    }
+    default:
+      return STILL;
+  }
+}
+
+/** Poses drawn from a dedicated sheet (gloves, paddle…) just breathe. */
+function breathe(t: number, color?: string): Juice {
+  const b = Math.sin(t / 290 + phaseOf(color));
+  return { sx: 1 - 0.012 * b, sy: 1 + 0.02 * b, r: 0, dx: 0, dy: 0 };
 }
 
 /** Drawn fallback character (no asset needed): a round buddy in the player's colour. */

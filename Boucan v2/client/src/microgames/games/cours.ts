@@ -44,7 +44,7 @@ export default defineMicrogame({
         }
       },
       draw(_t, dt) {
-        sceneBg('ville', GY);
+        sceneBg('desert', GY, 0, false, 'cours');
         flag(finish + 60, GY);
         puffs = drawPuffs(puffs, dt);
         me.draw(x, GY);

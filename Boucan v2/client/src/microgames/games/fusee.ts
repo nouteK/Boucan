@@ -1,4 +1,4 @@
-import { g, INK, outlineText, shadow } from '../../engine/draw';
+import { g, INK, item, outlineText, shadow } from '../../engine/draw';
 import { defineMicrogame } from '../api';
 import { sceneBg } from '../backdrops';
 import { byLevel, fxRand, GY, hero } from '../common';
@@ -35,7 +35,8 @@ export default defineMicrogame({
   verb: 'ESQUIVE LA FUSÉE !',
   create(ctx) {
     const me = hero(ctx);
-    const speed = byLevel(ctx, 0.56, 0.58, 0.6);
+    // On a phone the hero always sprints (no run button); on a keyboard a steady trot.
+    const speed = ctx.touch ? 0.8 : byLevel(ctx, 0.56, 0.58, 0.6);
     const pace = byLevel(ctx, 1, 1.08, 1.16);
     const kinds: Kind[] = ['low', 'high', 'dive', 'homing'];
     let at = ctx.rng.range(1100, 1300);
@@ -148,7 +149,7 @@ export default defineMicrogame({
       },
       timeout: () => (hit ? 'failure' : 'success'),
       draw(t) {
-        sceneBg('ville', GY);
+        sceneBg('desert', GY, 0, false, 'fusee');
         const c = g();
         const r = rocket as Rocket | null;
         if (r && r.warn > 0) {
@@ -175,42 +176,35 @@ export default defineMicrogame({
             c.arc(px, py, 6 + k * 16, 0, Math.PI * 2);
             c.fill();
           });
+          const angle = Math.atan2(r.vy, r.vx);
           c.save();
           c.translate(r.x, r.y);
-          c.rotate(Math.atan2(r.vy, r.vx));
-          c.strokeStyle = INK;
-          c.lineWidth = 5;
-          c.fillStyle = '#ff4f4f';
-          c.beginPath();
-          c.moveTo(52, 0);
-          c.quadraticCurveTo(30, -22, -30, -20);
-          c.lineTo(-30, 20);
-          c.quadraticCurveTo(30, 22, 52, 0);
-          c.fill();
-          c.stroke();
-          c.fillStyle = '#fff';
-          c.beginPath();
-          c.arc(10, 0, 9, 0, Math.PI * 2);
-          c.fill();
-          c.stroke();
-          c.fillStyle = '#ffd23c';
-          for (const s of [-1, 1]) {
-            c.beginPath();
-            c.moveTo(-18, s * 18);
-            c.lineTo(-40, s * 36);
-            c.lineTo(-34, s * 16);
-            c.closePath();
-            c.fill();
-            c.stroke();
-          }
+          c.rotate(angle);
           c.fillStyle = '#ffb020';
           c.beginPath();
-          c.moveTo(-32, -11);
-          c.lineTo(-62 - fxRand(0, 20), 0);
-          c.lineTo(-32, 11);
+          c.moveTo(-50, -12);
+          c.lineTo(-86 - fxRand(0, 22), 0);
+          c.lineTo(-50, 12);
           c.closePath();
           c.fill();
           c.restore();
+          // The rocket picture points up: turned along the flight. Drawn one if missing.
+          if (!item('rocket', r.x, r.y, 120, angle + Math.PI / 2)) {
+            c.save();
+            c.translate(r.x, r.y);
+            c.rotate(angle);
+            c.strokeStyle = INK;
+            c.lineWidth = 5;
+            c.fillStyle = '#ff4f4f';
+            c.beginPath();
+            c.moveTo(52, 0);
+            c.quadraticCurveTo(30, -22, -30, -20);
+            c.lineTo(-30, 20);
+            c.quadraticCurveTo(30, 22, 52, 0);
+            c.fill();
+            c.stroke();
+            c.restore();
+          }
         }
         shadow(x, GY, Math.max(40, 100 - y / 4));
         me.draw(x, GY - y, HERO, { flip: face, shadow: false });

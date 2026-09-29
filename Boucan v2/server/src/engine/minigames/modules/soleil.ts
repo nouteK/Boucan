@@ -21,9 +21,9 @@ const Input = z.union([
 const P = {
   goal: 24,
   /** Turning around takes this long; steps during the turn are fine. */
-  turnMs: 200,
+  turnMs: 340,
   /** Once watching, a step is still forgiven for this long (reaction). */
-  graceMs: 110,
+  graceMs: 120,
   humanWatchMs: 1100,
   cooldownMs: 450,
   feintMs: 300,

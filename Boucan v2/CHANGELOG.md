@@ -2,6 +2,22 @@
 
 Versions : `PROTOCOL_VERSION` (cassant) / `CONTRACT_REVISION` (compatible) / version serveur. Plus récent en haut.
 
+## 2026-09-30 — protocole 4 · les 38 jeux du prototype OUAF WARE v3, 5 mondes en diorama, manches faciles
+
+**Cassant** (valeurs de `zone`) : `PROTOCOL_VERSION` 4, `CONTRACT_REVISION` 4.0.0. Voir [ADR-0014](docs/adr/0014-catalogue-ouaf-ware-v3.md).
+
+| Module | Changement |
+| --- | --- |
+| `shared/contracts` | Catalogue = 38 micro-jeux (28 solos, 10 duels) : + `porte`, `ampoule`, `gobelet`, `pasteque`, `ballon`, `photo`, `assiettes`, duel `pieces` ; − `skate`, `roi` (absents du prototype v3). `ZONES` = `prairie` / `desert` / `tresor` / `futur` / `ville` ; drapeau `easy` sur 12 solos |
+| `server/match` | Les `rhythm.easyRounds` premières manches (4) tirent parmi les solos `easy` du monde (`pickMicrogame(…, early)`) |
+| `server/minigames` | Nouveau duel `pieces` (pluie de pièces et de bombes par piste, déplacements compensés en latence, bombe = −2 et étourdi) ; `roi` supprimé ; `soleil` : demi-tour 340 ms, tolérance 120 ms |
+| `client/microgames` | 8 nouveaux jeux ; tous les jeux replacés dans leur monde v3 ; objets en images (sac, caisse, œufs, bombe volante, fusée, corde, ballon, raquettes…) avec repli dessiné ; `panier` dans le gymnase peint, `gardien` au stade, `soleil` avec feu tricolore et regard du guetteur, `ping` raquette qui suit le doigt, `esquive` sur la nouvelle rue ; `fusee` plus lente en tactile |
+| `client/engine` | Dioramas `sceneBg(…, graine)` (image + pièces de décor + sol papier + brume + lumière + particules, en cache) et `skyline()` ; contour papier des planches (`outline`) ; mouvement procédural des poses (`juice`) ; `item()` / `stretch()` ; `assets.image()` |
+| `client/app` | Salon : MONDE = Mélange, Prairie, Désert, Trésor, Futur (la ville n'est jouée qu'en Mélange) ; thèmes d'intro / interlude des 5 mondes |
+| `client/assets` | + `backgrounds/prairie`, `desert`, `tresor` ; `futur`, `ville`, `sprites/route` remplacés ; + `images/` (items, décor, scènes : 52 images) ; + `sounds/hit`, `select`, `fanfare` ; − `backgrounds/foret`, `neige`, `sprites/skate` |
+| hors périmètre | Méta-jeu du prototype non repris : atouts, roue, XP / titres, événements, PeerJS, 7 vies, duel `reflexe`, texture papier plein écran, parallaxe |
+| tests | Fumée des nouveaux solos (dont tactile), duel `pieces` de bout en bout et règles serveur, mondes des tests de cycle de vie : 145 tests ; intégration réseau 20/20 |
+
 ## 2026-09-28 — `ALLOWED_ORIGINS` avec motifs, tunnel qui change d'adresse
 
 Protocole inchangé. Incident : Docker Desktop a redémarré, le tunnel rapide de production a pris une nouvelle adresse, et `ALLOWED_ORIGINS` (adresse exacte de l'ancien tunnel) refusait le WebSocket de la nouvelle : la page s'affichait mais on ne pouvait plus jouer.

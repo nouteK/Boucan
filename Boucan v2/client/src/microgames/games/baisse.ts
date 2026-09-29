@@ -87,7 +87,7 @@ export default defineMicrogame({
       },
       timeout: () => (hurt ? 'failure' : 'success'),
       draw() {
-        sceneBg('ville', GY);
+        sceneBg('prairie', GY, 0, false, 'baisse');
         throwers.forEach((a, i) => a.draw(1070 + i * 75, GY, 200 + i * 12, { flip: true }));
         me.draw(X, GY);
         const c = g();

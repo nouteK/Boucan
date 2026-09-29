@@ -1,4 +1,4 @@
-import { ellipse, g, outlineText, shadow } from '../../engine/draw';
+import { ellipse, g, item, outlineText, shadow } from '../../engine/draw';
 import { defineMicrogame } from '../api';
 import { sceneBg } from '../backdrops';
 import { byLevel, GY, hero } from '../common';
@@ -100,7 +100,7 @@ export default defineMicrogame({
       },
       timeout: () => (!hit && passed >= COUNT ? 'success' : 'failure'),
       draw(t) {
-        sceneBg('neige', GY);
+        sceneBg('desert', GY, 0, false, 'hautbas');
         const c = g();
         bombs.forEach((b, i) => {
           if (hit?.i === i) return;
@@ -113,8 +113,10 @@ export default defineMicrogame({
           } else {
             const y = GY - 215 + Math.sin(t / 120 + b.wob) * 10;
             ellipse(x, GY, 50, 10, 'rgba(0,0,0,.18)', 0);
-            for (const s of [-1, 1]) ellipse(x + s * 62, y - 40 + Math.sin(t / 50) * 14, 46, 18, '#fff', 5, s * 0.5);
-            bomb(x, y + 40, 150, close ? 2 : 1, true, 0);
+            if (!item('fbomb', x, y - 10, 150, Math.sin(t / 90) * 0.12, true)) {
+              for (const s of [-1, 1]) ellipse(x + s * 62, y - 40 + Math.sin(t / 50) * 14, 46, 18, '#fff', 5, s * 0.5);
+              bomb(x, y + 40, 150, close ? 2 : 1, true, 0);
+            }
           }
           if (i === passed && x - X < 700) outlineText(b.low ? '▲' : '▼', x, b.low ? GY - 230 : GY - 330, 44, b.low ? '#7dff9b' : '#ffd23c', 'center', 7);
         });

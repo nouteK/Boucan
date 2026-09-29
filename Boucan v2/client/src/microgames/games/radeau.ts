@@ -2,7 +2,7 @@ import type { TypedPayload } from '@boucan/shared';
 import { assets, drawSprite } from '../../engine/assets';
 import { box, circle, ellipse, g, INK, outlineText, slam } from '../../engine/draw';
 import { defineMicrogame } from '../api';
-import { sceneBg } from '../backdrops';
+import { skyline } from '../backdrops';
 import { Actor, sideOf } from '../common';
 import { gauge, keyCap } from '../props';
 
@@ -106,7 +106,7 @@ export default defineMicrogame({
           return;
         }
         const len = state.length;
-        sceneBg('foret', FAR, cam * 0.4, true);
+        skyline(FAR - 14, Math.min(1, cam / len) * 140, 'radeau');
         // Far bank.
         c.fillStyle = '#1d1440';
         c.beginPath();

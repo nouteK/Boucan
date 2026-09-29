@@ -55,7 +55,7 @@ export default defineMicrogame({
         fs.forEach((f) => f.actor.update(dt));
       },
       draw(t) {
-        sceneBg('foret', GY);
+        sceneBg('tresor', GY, 0, false, 'patate');
         for (const f of fs) {
           f.actor.draw(f.x, GY, h, { flip: f.x > 640 });
           nameTag(f, GY - h - 24);

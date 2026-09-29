@@ -1,4 +1,4 @@
-import { ellipse, g, outlineText, poly } from '../../engine/draw';
+import { ellipse, g, item, outlineText, poly } from '../../engine/draw';
 import { defineMicrogame } from '../api';
 import { sceneBg } from '../backdrops';
 import { byLevel, fxRand, GY, hero, isPress } from '../common';
@@ -99,7 +99,7 @@ export default defineMicrogame({
       },
       timeout: () => (state === 'caught' ? 'success' : 'failure'),
       draw(time) {
-        sceneBg('neige', GY);
+        sceneBg('prairie', GY, 0, false, 'plateau');
         if (state === 'fly') {
           const k = Math.min(1, t / flight);
           ellipse(px, GY, 40 + 50 * k, 10, `rgba(0,0,0,${0.1 + 0.2 * k})`, 0);
@@ -110,14 +110,17 @@ export default defineMicrogame({
         else if (state === 'fly') egg(px, py + 40, 0.9, rot * 2);
         else if (state === 'wait') outlineText('!', 1220, 150, Math.round(60 * (1 + 0.12 * Math.sin(time / 60))), '#fff', 'center', 7);
         else {
-          ellipse(X + 150, GY - 6, 70, 16, '#ffd23c', 6);
-          ellipse(X + 150, GY - 10, 14, 14, '#ff9f1c', 0);
-          for (const b of bits) {
-            c.save();
-            c.translate(b.x, b.y);
-            c.rotate(b.r);
-            poly([[-22, 0], [-10, -18], [0, -6], [12, -20], [22, 0]], '#fff3d6', 5);
-            c.restore();
+          // The broken egg picture, or a drawn yolk with flying shell bits.
+          if (!item('egg-x', X + 150, GY - 50, 110)) {
+            ellipse(X + 150, GY - 6, 70, 16, '#ffd23c', 6);
+            ellipse(X + 150, GY - 10, 14, 14, '#ff9f1c', 0);
+            for (const b of bits) {
+              c.save();
+              c.translate(b.x, b.y);
+              c.rotate(b.r);
+              poly([[-22, 0], [-10, -18], [0, -6], [12, -20], [22, 0]], '#fff3d6', 5);
+              c.restore();
+            }
           }
           outlineText('CRAC !', X + 200, GY - 330, 56, '#fff');
         }

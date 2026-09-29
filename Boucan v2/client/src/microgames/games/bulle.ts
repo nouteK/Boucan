@@ -47,7 +47,7 @@ export default defineMicrogame({
       },
       timeout: () => (done ? 'success' : 'failure'),
       draw(t) {
-        sceneBg('futur', GY);
+        sceneBg('prairie', GY, 0, false, 'bulle');
         const c = g();
         me.draw(X, GY);
         const k = Math.min(1, n / need);

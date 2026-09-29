@@ -1,7 +1,7 @@
 import type { TypedPayload } from '@boucan/shared';
 import { box, ellipse, g, INK, outlineText, slam, star } from '../../engine/draw';
 import { defineMicrogame } from '../api';
-import { sceneBg } from '../backdrops';
+import { skyline } from '../backdrops';
 import { Actor, isPress } from '../common';
 import { bomb } from '../props';
 
@@ -106,7 +106,7 @@ export default defineMicrogame({
       draw(t) {
         const c = g();
         const horizon = project(0, 0, 300).y;
-        sceneBg('ville', horizon + 36, 0, true);
+        skyline(horizon, 0, 'sauter');
         const dirt = c.createLinearGradient(0, horizon, 0, 720);
         dirt.addColorStop(0, '#b88a5a');
         dirt.addColorStop(1, '#e8c08a');

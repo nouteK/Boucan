@@ -34,8 +34,9 @@ export interface ZoneTheme {
 }
 
 export const ZONE_THEMES: Record<ZoneId, ZoneTheme> = {
-  foret: { name: 'LA FORÊT', tint: 'rgba(30,18,70,.38)', counter: '#ffe04a', jingle: [0, 3, 7, 10, 7, 3] },
-  ville: { name: 'LA VILLE', tint: 'rgba(10,40,90,.28)', counter: '#ffe04a', jingle: [0, 4, 7, 12, 7, 4] },
-  neige: { name: 'LA NEIGE', tint: 'rgba(90,30,70,.3)', counter: '#fff8e8', jingle: [0, 5, 9, 12, 9, 5] },
+  prairie: { name: 'LA PRAIRIE', tint: 'rgba(20,50,30,.2)', counter: '#ffe04a', jingle: [0, 4, 7, 12, 7, 4] },
+  desert: { name: 'LE DÉSERT', tint: 'rgba(90,50,10,.22)', counter: '#fff8e8', jingle: [0, 5, 9, 12, 9, 5] },
+  tresor: { name: 'LE TRÉSOR', tint: 'rgba(40,15,50,.3)', counter: '#ffe04a', jingle: [0, 3, 7, 10, 7, 3] },
   futur: { name: 'LE FUTUR', tint: 'rgba(0,60,100,.28)', counter: '#ffe04a', jingle: [0, 2, 7, 11, 14, 11] },
+  ville: { name: 'LA VILLE', tint: 'rgba(10,40,90,.28)', counter: '#ffe04a', jingle: [0, 4, 7, 12, 7, 4] },
 };

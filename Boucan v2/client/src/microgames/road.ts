@@ -1,20 +1,18 @@
 import { drawSprite } from '../engine/assets';
 import { g, INK } from '../engine/draw';
-import { sceneBg } from './backdrops';
-import { GY } from './common';
 
 /**
- * The road seen from behind the runner (esquive, skate): a painted road
- * image in perspective, with points on it given by a distance `d` ahead and a
- * lateral position `u` ∈ [−1, 1]. Its geometry lives in a 1280×800 "road
- * space" (the image's), drawn scaled into the 1280×720 view: draw road things
- * between `enterRoad()` and a restore.
+ * The street seen from behind the runner (ESQUIVE LES BOMBES): a painted city
+ * street in perspective, with points on it given by a distance `d` ahead and
+ * a lateral position `u` ∈ [−1, 1]. Its geometry lives in the picture's
+ * 1280×800 "road space", shown 80 px higher in the 1280×720 view (the top of
+ * the sky is cut): draw road things between `enterRoad()` and a restore.
  */
-const VP = [1608, -54] as const;
-const NEAR_L = [150, 770] as const;
-const NEAR_R = [1053, 770] as const;
+const VP = [1446, 41] as const;
+const NEAR_L = [-265, 793] as const;
+const NEAR_R = [1051, 793] as const;
 const DEPTH = 300;
-const SCALE = 0.9;
+const RAISE = 80;
 
 export interface RoadPoint {
   x: number;
@@ -31,26 +29,18 @@ export function roadPoint(d: number, u: number): RoadPoint {
   return { x: VP[0] + (ox - VP[0]) * p, y: VP[1] + (oy - VP[1]) * p, p };
 }
 
-/** Angle of the road's direction at a point (to tilt things along it). */
-export function roadAngle(q: RoadPoint): number {
-  return Math.atan2(VP[1] - q.y, VP[0] - q.x);
-}
-
 /** Switches the canvas to road space (caller saves / restores). */
 export function enterRoad(): void {
-  const c = g();
-  c.translate((1280 * (1 - SCALE)) / 2, 0);
-  c.scale(SCALE, SCALE);
+  g().translate(0, -RAISE);
 }
 
 /**
- * Background, road and the stripes that scroll towards you (`travelled` =
+ * The street, and the stripes that scroll towards you (`travelled` =
  * distance covered); `dashes` = lateral positions of dashed lane lines.
  */
 export function drawRoad(travelled: number, dashes: readonly number[] = []): void {
   const c = g();
-  sceneBg('ville', GY);
-  c.fillStyle = 'rgba(20,15,40,.22)';
+  c.fillStyle = '#5fb7ff';
   c.fillRect(0, 0, 1280, 720);
   c.save();
   enterRoad();
@@ -66,7 +56,7 @@ export function drawRoad(travelled: number, dashes: readonly number[] = []): voi
     c.lineTo(R0.x, R0.y);
     c.closePath();
   };
-  if (!drawSprite('route', 'route', 0, -106, 68, 798)) {
+  if (!drawSprite('route', 'route', 0, -4, 0, 800)) {
     outline();
     c.fillStyle = '#8f9ba6';
     c.fill();

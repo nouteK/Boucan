@@ -40,7 +40,7 @@ export default defineMicrogame({
       },
       timeout: () => (stung >= 0 ? 'failure' : 'success'),
       draw(t) {
-        sceneBg('foret', GY);
+        sceneBg('prairie', GY, 0, false, 'bouge');
         me.draw(X, GY);
         const stingy = stung >= 200;
         const a = t / 260 + phase;

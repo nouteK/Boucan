@@ -57,15 +57,15 @@ describe('lobby', () => {
     harness = new Harness();
     const { host, players } = setupRoom(harness, 2, { ready: false, bots: 2 });
     expect(host.request('match.configure', { lives: 7 })).toMatchObject({ ok: false, error: { code: 'INVALID_PAYLOAD' } });
-    expect(host.request('match.configure', { zone: 'piscine' as 'foret' })).toMatchObject({ ok: false, error: { code: 'INVALID_PAYLOAD' } });
-    host.ok('match.configure', { zone: 'neige', lives: 3, length: 'court' });
+    expect(host.request('match.configure', { zone: 'piscine' as 'prairie' })).toMatchObject({ ok: false, error: { code: 'INVALID_PAYLOAD' } });
+    host.ok('match.configure', { zone: 'desert', lives: 3, length: 'court' });
     expect(host.snapshot.lobby.players.every((p) => p.lives === 3)).toBe(true);
     expect(host.request('match.start')).toMatchObject({ ok: false, error: { code: 'NOT_ALL_READY' } });
     players.forEach((p) => p.ok('player.ready', { ready: true }));
     expect(host.snapshot.lobby.canStart).toBe(true);
     host.ok('match.start');
     expect(host.phase).toBe('STAGE_INTRO');
-    expect(host.snapshot.match.zone).toBe('neige');
+    expect(host.snapshot.match.zone).toBe('desert');
   });
 });
 

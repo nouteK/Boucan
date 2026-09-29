@@ -73,7 +73,7 @@ export default defineMicrogame({
       },
       timeout: () => (hurt ? 'failure' : 'success'),
       draw() {
-        sceneBg('neige', GY);
+        sceneBg('prairie', GY, 0, false, 'puree');
         for (const sx of splats) snowSplat(sx, GY - 2, 0.9);
         for (const b of balls) {
           if (b.state !== 'fall') continue;

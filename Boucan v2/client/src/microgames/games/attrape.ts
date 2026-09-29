@@ -60,7 +60,7 @@ export default defineMicrogame({
         if (!ctx.outcome && by >= GY - 25) ctx.lose();
       },
       draw() {
-        sceneBg('futur', GY);
+        sceneBg('prairie', GY, 0, false, 'attrape');
         if (!caught) ellipse(bx, GY, 50, 10, 'rgba(0,0,0,.2)', 0);
         me.draw(x, GY, undefined, { flip: face < 0 });
         if (caught) bone(x + (face < 0 ? -40 : 40), GY - 190, 1.05, 0.2);

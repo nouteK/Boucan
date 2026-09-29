@@ -3,6 +3,7 @@ import { inZone, type MicrogameInfo, type MicrogameKind, type Rng, type ZoneId }
 /**
  * Picks the next microgame of a given kind:
  * - from the stage zone (any zone in "mix");
+ * - only `easy` ones while `early` (first rounds of a match), when there are some;
  * - least played first (every microgame before any repeat);
  * - never the same twice in a row when avoidable; weighted random.
  * Falls back to any zone when the zone has no microgame of that kind.
@@ -13,11 +14,14 @@ export function pickMicrogame(
   zone: ZoneId | 'mix',
   history: readonly string[],
   rng: Rng,
+  early = false,
 ): MicrogameInfo | null {
   const ofKind = enabled.filter((m) => m.kind === kind);
   if (ofKind.length === 0) return null;
   const inStage = zone === 'mix' ? ofKind : ofKind.filter((m) => inZone(m, zone));
-  const candidates = inStage.length > 0 ? inStage : ofKind;
+  const stage = inStage.length > 0 ? inStage : ofKind;
+  const easy = early ? stage.filter((m) => m.easy) : [];
+  const candidates = easy.length > 0 ? easy : stage;
 
   const last = history[history.length - 1];
   const notLast = candidates.filter((m) => m.id !== last);

@@ -105,7 +105,7 @@ export default defineMicrogame({
       },
       timeout: () => (ok === N && !lost ? 'success' : 'failure'),
       draw(t) {
-        sceneBg('neige', GY);
+        sceneBg('prairie', GY, 0, false, 'degage');
         const lit = bombs.some((b) => b.state === 'roll' && b.x - FOOT > ZONE[0] && b.x - FOOT < ZONE[1]);
         box(FOOT + ZONE[0], GY - 7, ZONE[1] - ZONE[0], 14, lit ? 'rgba(255,224,74,.8)' : 'rgba(255,255,255,.35)', 5);
         for (let i = bombs.length - 1; i >= 0; i--) {

@@ -34,6 +34,8 @@ export interface GameConfig {
     levelTempoStep: number;
     /** A duel every N microgames (0 = never). Needs ≥ 2 alive players. */
     duelEvery: number;
+    /** The first N microgames of a match are picked among the easy ones (warm-up). */
+    easyRounds: number;
   };
   bots: {
     /** Skill range of new bots (0..1), drawn uniformly. */
@@ -97,6 +99,7 @@ export const DEFAULT_GAME_CONFIG: GameConfig = {
     maxTempo: 1.7,
     levelTempoStep: 0.12,
     duelEvery: 5,
+    easyRounds: 4,
   },
   bots: {
     minSkill: 0.55,

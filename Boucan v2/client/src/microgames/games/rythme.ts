@@ -73,7 +73,7 @@ export default defineMicrogame({
       },
       timeout: () => (result === 'win' ? 'success' : 'failure'),
       draw(t) {
-        sceneBg('futur', GY);
+        sceneBg('prairie', GY, 0, false, 'rythme');
         const c = g();
         // Drum.
         const f = Math.max(0, 1 - flash / 220);

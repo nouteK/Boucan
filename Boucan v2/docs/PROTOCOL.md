@@ -41,7 +41,7 @@ Un message avec `rid` reçoit exactement une `reply`. Sans `rid`, un succès est
 | `minigame.report` | `roundId`, `result { outcome, score? }` | `MICROGAME` (solo/boss) | — |
 | `minigame.input` | `roundId`, `input`, `at?`, `seq?` | `MICROGAME` (duel) | — |
 
-`MatchConfig` : `zone` (le monde) = `mix` \| `foret` \| `ville` \| `neige` \| `futur` ; `lives` = 3 \| 4 \| 5 ; `length` = `court` \| `normal` \| `long` (1, 2 ou 3 niveaux).
+`MatchConfig` : `zone` (le monde) = `mix` \| `prairie` \| `desert` \| `tresor` \| `futur` \| `ville` (protocole 4) ; `lives` = 3 \| 4 \| 5 ; `length` = `court` \| `normal` \| `long` (1, 2 ou 3 niveaux).
 
 Règles de validation communes (`GAME_RULES`) : 1 à 8 joueurs ; pseudo 2–16 caractères (graphèmes), filtre de mots ; code de room 4 caractères dans `BCDFGHJKMNPQRTVWXZ234679` (pas de voyelles ni de caractères ambigus).
 

@@ -4,8 +4,8 @@
    "frame": {
     "x": 0,
     "y": 0,
-    "w": 1597,
-    "h": 798
+    "w": 1288,
+    "h": 800
    },
    "anchor": {
     "x": 0,
@@ -14,6 +14,6 @@
   }
  },
  "meta": {
-  "note": "Route en perspective (esquive, skate). Ancre = coin haut gauche."
+  "note": "Route en perspective (ESQUIVE LES BOMBES). Ancre = coin haut gauche."
  }
 }

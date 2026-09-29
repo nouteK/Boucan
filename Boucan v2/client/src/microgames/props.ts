@@ -1,5 +1,5 @@
 import { drawSprite } from '../engine/assets';
-import { box, burst, circle, ellipse, font, g, INK, outlineText, poly } from '../engine/draw';
+import { box, burst, circle, ellipse, font, g, INK, item, outlineText, poly } from '../engine/draw';
 
 /**
  * Reusable props, drawn in the game style. Sprites from the manifest are used
@@ -121,6 +121,7 @@ export function gauge(x: number, y: number, w: number, h: number, value: number,
 }
 
 export function snowBall(x: number, y: number, r = 30, rot = 0): void {
+  if (item('snow', x, y, r * 2.1, rot)) return;
   const c = g();
   c.save();
   c.translate(x, y);
@@ -160,6 +161,7 @@ export function sign(x: number, y: number, text: string, fill = '#ffe04a', size 
 
 /** Speckled egg, standing on (x, y). */
 export function egg(x: number, y: number, s = 1, rot = 0): void {
+  if (item('egg', x, y - 46 * s, 108 * s, rot)) return;
   const c = g();
   c.save();
   c.translate(x, y);
@@ -196,6 +198,7 @@ export function potion(x: number, y: number, s = 1, fill = 0, col = '#35e0ff'): 
 
 /** Hovering drone with spinning rotors, centred on (x, y). */
 export function drone(x: number, y: number, t: number, tilt = 0, s = 1): void {
+  if (item('drone', x, y + 6, 125 * s, tilt)) return;
   const c = g();
   c.save();
   c.translate(x, y);

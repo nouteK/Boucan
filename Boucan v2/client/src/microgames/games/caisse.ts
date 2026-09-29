@@ -1,4 +1,4 @@
-import { box, g, INK, outlineText, star } from '../../engine/draw';
+import { box, g, INK, item, outlineText, star } from '../../engine/draw';
 import { defineMicrogame } from '../api';
 import { sceneBg } from '../backdrops';
 import { byLevel, fxRand, GY, hero, isPress } from '../common';
@@ -63,22 +63,24 @@ export default defineMicrogame({
       },
       timeout: () => (hp <= 0 ? 'success' : 'failure'),
       draw(t) {
-        sceneBg('foret', GY);
+        sceneBg('tresor', GY, 0, false, 'caisse');
         const c = g();
         if (hp > 0) {
           const s = shake > 0 ? Math.sin(t * 1.7) * 7 : 0;
           c.save();
           c.translate(CRATE_X + s, GY - SIZE / 2);
-          box(-SIZE / 2, -SIZE / 2, SIZE, SIZE, '#c98a3c', 9);
+          if (!item('crate', 0, -8, SIZE * 1.18)) {
+            box(-SIZE / 2, -SIZE / 2, SIZE, SIZE, '#c98a3c', 9);
+            c.strokeStyle = INK;
+            c.lineWidth = 7;
+            c.beginPath();
+            c.moveTo(-SIZE / 2, -SIZE / 2);
+            c.lineTo(SIZE / 2, SIZE / 2);
+            c.moveTo(SIZE / 2, -SIZE / 2);
+            c.lineTo(-SIZE / 2, SIZE / 2);
+            c.stroke();
+          }
           c.strokeStyle = INK;
-          c.lineWidth = 7;
-          c.beginPath();
-          c.moveTo(-SIZE / 2, -SIZE / 2);
-          c.lineTo(SIZE / 2, SIZE / 2);
-          c.moveTo(SIZE / 2, -SIZE / 2);
-          c.lineTo(-SIZE / 2, SIZE / 2);
-          c.stroke();
-          c.strokeRect(-SIZE / 2 + 14, -SIZE / 2 + 14, SIZE - 28, SIZE - 28);
           // Cracks: one more per hit.
           c.lineWidth = 5;
           for (let i = 0; i < max - hp; i++) {

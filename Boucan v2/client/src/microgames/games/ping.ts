@@ -1,6 +1,6 @@
 import type { TypedPayload } from '@boucan/shared';
 import { assets, drawCharacter, drawSprite } from '../../engine/assets';
-import { circle, ellipse, g, outlineText, slam } from '../../engine/draw';
+import { circle, ellipse, g, item, outlineText, slam } from '../../engine/draw';
 import { defineMicrogame, type MgPlayer } from '../api';
 import { Actor } from '../common';
 import { Pad, PAD_LEFT, PAD_RIGHT, PAD_Y } from '../pad';
@@ -8,8 +8,9 @@ import { bomb } from '../props';
 
 /**
  * DUEL — PING-PONG ! One-on-one matches side by side (the odd one out plays
- * the house bomb). Move your paddle (◀ ▶), swing when the ball reaches you
- * (hold ◀ or ▶ while swinging to aim); perfect timing = smash. First to 2.
+ * the house bomb). Move your paddle (← → / on a phone it follows your finger),
+ * swing when the ball reaches you (Space / ↑ / a touch; hold ← or → while
+ * swinging to aim); perfect timing = smash. First to 2.
  * Server-judged (server ping.ts); your paddle and your returns are predicted
  * locally so they answer at once. You always play from the near side.
  */
@@ -92,6 +93,8 @@ export default defineMicrogame({
     );
     let state: State | null = null;
     let px = 0;
+    /** Touch: last finger x (the paddle follows it). */
+    let finger: number | null = null;
     let sentPx = 0;
     let sentAt = -1e9;
     let readyAt = 0;
@@ -120,7 +123,11 @@ export default defineMicrogame({
         if (!state || overAt >= 0) return;
         const w = where();
         if (!w.playing) return;
-        for (const ev of pad.input(e)) {
+        // On a phone: the paddle goes where the finger is, and every touch swings.
+        const touches = ctx.touch && e.type !== 'key' && e.type !== 'keyup';
+        if (touches && (e.type === 'down' || (e.type === 'move' && e.pressed)) && e.x !== null) finger = e.x;
+        const events = touches ? (e.type === 'down' ? [{ action: 'swing', down: true }] : []) : pad.input(e);
+        for (const ev of events) {
           if (!ev.down || ev.action !== 'swing') continue;
           const now = ctx.serverNow();
           if (now < readyAt) continue;
@@ -171,7 +178,8 @@ export default defineMicrogame({
         if (!state) return;
         const w = where();
         if (w.playing && overAt < 0) {
-          px = Math.max(-1, Math.min(1, px + (pad.axis('left', 'right') * PADDLE_SPEED * dt) / 1000));
+          if (ctx.touch && finger !== null) px += (Math.max(-1, Math.min(1, (finger - 640) / 405)) - px) * Math.min(1, dt / 60);
+          else px = Math.max(-1, Math.min(1, px + (pad.axis('left', 'right') * PADDLE_SPEED * dt) / 1000));
           const now = ctx.serverNow();
           if (px !== sentPx && now - sentAt > 66) {
             sentPx = px;
@@ -239,7 +247,7 @@ export default defineMicrogame({
           const r = Math.max(3, BALL_R * q.s);
           ellipse(sq.x, sq.y, r * 1.1, r * 0.35, 'rgba(0,0,0,.35)', 0);
           if (b.smash && now - b.t0 < 400) circle(q.x, q.y, r * 2.2, 'rgba(255,200,60,.45)', 0);
-          circle(q.x, q.y, r, '#fff6e0', Math.max(2, r * 0.22));
+          if (!item('pball', q.x, q.y, r * 2.3)) circle(q.x, q.y, r, '#fff6e0', Math.max(2, r * 0.22));
         };
         const far = (id: string | null, x: number, ox: number, oz: number, swing: number, k: number) => {
           const q = project(x + ox + 0.3, 0, 3.3 + oz);
@@ -248,8 +256,10 @@ export default defineMicrogame({
           else bomb(q.x, q.y, 1.1 * q.s * k, 0, true, 0);
           const sw = swing > 0 ? Math.sin(swing * Math.PI) : 0;
           const pq = project(x + ox, 0.85 + sw * 0.1, 3.04 + oz - sw * 0.1);
-          circle(pq.x, pq.y, 0.13 * pq.s + 3, '#161616', 0);
-          circle(pq.x, pq.y, 0.13 * pq.s, '#2d6bff', 0);
+          if (!item('paddle', pq.x, pq.y + 0.065 * pq.s, 0.42 * pq.s, 0.5, true)) {
+            circle(pq.x, pq.y, 0.13 * pq.s + 3, '#161616', 0);
+            circle(pq.x, pq.y, 0.13 * pq.s, '#2d6bff', 0);
+          }
           const p = playerOf(id);
           outlineText(p ? p.nickname : 'BOMBE', q.x, q.y - h - 6, Math.round(Math.min(26, q.s * 0.08 + 10)), p?.color ?? '#ff6b6b', 'center', 5);
         };
@@ -329,8 +339,10 @@ export default defineMicrogame({
           const won = w.playing && m.winner === w.side;
           slam(w.playing ? (won ? 'TU GAGNES !' : 'PERDU…') : 'FIN DU MATCH', clock - overAt, '#ffe04a', 640, 220, 90, 900);
         } else if (w.playing) {
-          pad.draw();
-          if (!ctx.touch && t > 950) outlineText('◀ ▶ pendant la frappe = tu vises', 1240, 700, 18, '#fff', 'right', 4);
+          if (!ctx.touch) {
+            pad.draw();
+            if (t > 950) outlineText('◀ ▶ pendant la frappe = tu vises', 1240, 700, 18, '#fff', 'right', 4);
+          } else if (t > 950 && t < 3500) outlineText('GLISSE LE DOIGT · TOUCHE POUR FRAPPER', 640, 690, 26, '#fff', 'center', 5);
         }
       },
     };

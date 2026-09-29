@@ -4,8 +4,8 @@ import { ballX, PING } from '../src/engine/minigames/modules/ping';
 import { jumpMs, ropePeriod, SAUTER, sweepTime } from '../src/engine/minigames/modules/sauter';
 import { Harness, setupRoom, type TestClient } from './harness';
 
-/** Duels of the OUAF WARE prototype (see docs/adr/0012 and 0013); patate and degaine are in duels.test.ts. */
-const NEW_DUELS = ['soleil', 'roi', 'gardien', 'sauter', 'ping', 'corde', 'radeau', 'boxe'];
+/** Duels of the OUAF WARE prototype (see docs/adr/0012 → 0014); patate and degaine are in duels.test.ts. */
+const NEW_DUELS = ['soleil', 'gardien', 'sauter', 'ping', 'pieces', 'corde', 'radeau', 'boxe'];
 
 let harness: Harness;
 afterEach(() => harness?.dispose());
@@ -191,53 +191,29 @@ describe('gardien (penalties)', () => {
   });
 });
 
-describe('roi (king of the hill)', () => {
-  type Roi = { king: string; bombs: { z: number }[]; climbers: Record<string, { x: number; z: number; stun: boolean }> };
+describe('pieces (coin rain)', () => {
+  type Pieces = { drops: { at: number; x: number; bomb: boolean }[]; players: Record<string, { x: number; coins: number; stun: boolean }>; winners: string[] | null };
 
-  it('a bomb knocks a climber standing in its way down the slope', () => {
-    harness = duelHarness('roi');
+  it('the same drops fall on every lane; coins count, bombs cost and stun', () => {
+    harness = duelHarness('pieces');
     const { host, players } = setupRoom(harness, 2);
     host.ok('match.start');
     const round = toMicrogame(harness, host);
     harness.advance(harness.tickMs);
-    const king = players.find((p) => p.playerId === stateOf<Roi>(host).king)!;
-    const climber = players.find((p) => p !== king)!;
-    harness.advance(1000);
-    input(king, round.roundId, { type: 'throw' });
-    harness.advanceUntil(() => host.minigameEvents().some((e) => e.type === 'hit'), 3000);
-    const c = stateOf<Roi>(host).climbers[climber.playerId!]!;
-    expect(c.stun).toBe(true);
-    expect(c.z).toBeLessThan(3);
-  });
-
-  it('a climber who steers away dodges, and reaching the summit dethrones the king', () => {
-    harness = duelHarness('roi');
-    const { host, players } = setupRoom(harness, 2);
-    host.ok('match.start');
-    const round = toMicrogame(harness, host);
-    harness.advance(harness.tickMs);
-    const king = players.find((p) => p.playerId === stateOf<Roi>(host).king)!;
-    const climber = players.find((p) => p !== king)!;
-    harness.advance(1000);
-    input(king, round.roundId, { type: 'throw' });
-    input(climber, round.roundId, { type: 'move', dir: 1 });
+    const { drops } = stateOf<Pieces>(host);
+    expect(drops.length).toBeGreaterThan(10);
+    expect(drops[0]!.bomb).toBe(false);
+    // Player 0 stands still at 0 and catches what falls there; player 1 runs to the far right edge and catches nothing.
+    input(players[1]!, round.roundId, { type: 'move', dir: 1 });
     harness.advanceUntil(() => host.phase === 'VERDICT');
-    expect(host.minigameEvents().some((e) => e.type === 'hit')).toBe(false);
-    expect(host.minigameEvents().some((e) => e.type === 'summit')).toBe(true);
-    expect(outcomes(host)).toEqual({ [climber.playerId!]: 'success', [king.playerId!]: 'failure' });
-  });
-
-  it('only the king throws', () => {
-    harness = duelHarness('roi');
-    const { host, players } = setupRoom(harness, 3);
-    host.ok('match.start');
-    const round = toMicrogame(harness, host);
-    harness.advance(harness.tickMs);
-    const climber = players.find((p) => p.playerId !== stateOf<Roi>(host).king)!;
-    expect(climber.request('minigame.input', { roundId: round.roundId, input: { type: 'throw' } })).toMatchObject({
-      ok: false,
-      error: { code: 'INPUT_REJECTED', details: { reason: 'notKing' } },
-    });
+    const s = stateOf<Pieces>(host);
+    const atZero = drops.filter((d) => Math.abs(d.x) < 0.62);
+    const expected = atZero.reduce((c, d) => (d.bomb ? Math.max(0, c - 2) : c + 1), 0);
+    expect(s.players[players[0]!.playerId!]!.coins).toBeLessThanOrEqual(atZero.filter((d) => !d.bomb).length);
+    expect(s.players[players[0]!.playerId!]!.coins).toBeGreaterThanOrEqual(Math.min(expected, 1));
+    const best = Math.max(...Object.values(s.players).map((p) => p.coins));
+    const o = outcomes(host);
+    for (const [id, p] of Object.entries(s.players)) expect(o[id]).toBe(p.coins === best ? 'success' : 'failure');
   });
 });
 
